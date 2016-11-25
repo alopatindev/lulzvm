@@ -50,9 +50,12 @@ mod tests {
             let code_length = executable.len() as u8;
             executable[0] = code_length;
 
-            let registers = run(&[], executable).1;
+            let (output, registers, memory) = run(&[], executable);
+
             assert_eq!(123, registers[A as usize]);
             assert_eq!(246, registers[B as usize]);
+            assert!(output.is_empty());
+            assert!(memory.stack_is_empty(registers[SP as usize]));
         }
 
         {
@@ -68,11 +71,13 @@ mod tests {
             let code_length = executable.len() as u8;
             executable[0] = code_length;
 
-            let registers = run(&[], executable).1;
+            let (output, registers, memory)  = run(&[], executable);
 
             assert_eq!(11, registers[A as usize]);
             assert_eq!(6, registers[B as usize]);
             assert_eq!(5, registers[C as usize]);
+            assert!(output.is_empty());
+            assert!(memory.stack_is_empty(registers[SP as usize]));
         }
 
         {
@@ -84,10 +89,12 @@ mod tests {
             let code_length = executable.len() as u8;
             executable[0] = code_length;
 
-            let (output, registers, _) = run(&[], executable);
+            let (output, registers, memory) = run(&[], executable);
+
             assert_eq!(0, registers[A as usize]);
             assert_eq!(&[10, 0, 9, 0, 8, 0, 7, 0, 6, 0, 5, 0,
                          4, 0, 3, 0, 2, 0, 1, 0, 0, 0], output.as_slice());
+            assert!(memory.stack_is_empty(registers[SP as usize]));
         }
 
         {
@@ -108,9 +115,11 @@ mod tests {
             executable[0] = code_length;
 
             let (output, registers, memory) = run(&[], executable);
+
             assert_eq!(8, memory.data.len());
             assert_eq!(0, registers[A as usize]);
             assert_eq!(&[3, 0, 2, 0, 1, 0, 0, 0], output.as_slice());
+            assert!(memory.stack_is_empty(registers[SP as usize]));
         }
 
         {
@@ -121,9 +130,10 @@ mod tests {
             let code_length = executable.len() as u8;
             executable[0] = code_length;
 
-            let (output, registers, _) = run(&[3, 0, 2, 0, 1, 0, 0, 0], executable);
+            let (output, registers, memory) = run(&[3, 0, 2, 0, 1, 0, 0, 0], executable);
             assert_eq!(0, registers[A as usize]);
             assert_eq!(&[3, 0, 2, 0, 1, 0, 0, 0], output.as_slice());
+            assert!(memory.stack_is_empty(registers[SP as usize]));
         }
 
         {
@@ -155,9 +165,12 @@ mod tests {
             let code_length = executable.len() as u8;
             executable[0] = code_length;
 
-            let (output, registers, _) = run(&[3, 0, 2, 0, 1, 0, 0, 0], executable);
+            let (output, registers, memory) = run(&[3, 0, 2, 0, 1, 0, 0, 0],
+                                                  executable);
+
             assert_eq!(0, registers[A as usize]);
             assert_eq!(&[6, 0, 4, 0, 1, 0, 0, 0], output.as_slice());
+            assert!(memory.stack_is_empty(registers[SP as usize]));
         }
     }
 
