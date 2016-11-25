@@ -4,12 +4,14 @@ pub const ADD: u8 = 0x01;
 pub const SUB: u8 = 0x02;
 pub const MUL: u8 = 0x03;
 pub const DIV: u8 = 0x04;
-pub const INC: u8 = 0x05;
-pub const DEC: u8 = 0x06;
+pub const MOD: u8 = 0x05;
+pub const INC: u8 = 0x06;
+pub const DEC: u8 = 0x07;
 
 pub const MOV: u8 = 0x10;
-pub const PUSH: u8 = 0x11;
-pub const POP: u8 = 0x12;
+pub const SWP: u8 = 0x11;
+pub const PUSH: u8 = 0x12;
+pub const POP: u8 = 0x13;
 
 // http://unixwiz.net/techtips/x86-jumps.html
 pub const JMP: u8 = 0x20;
