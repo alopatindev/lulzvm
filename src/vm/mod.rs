@@ -1,5 +1,5 @@
-use std::io::{Read, Write};
 use common::*;
+use std::io::{Read, Write};
 
 mod memory;
 mod registers;
@@ -32,11 +32,11 @@ impl<'a, R: Read, W: Write> VM<'a, R, W> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use std::io::{BufReader, BufWriter};
-    use self::registers::*;
-    use self::opcodes::*;
     use self::modes::*;
+    use self::opcodes::*;
+    use self::registers::*;
+    use std::io::{BufReader, BufWriter};
+    use super::*;
 
     #[cfg_attr(rustfmt, rustfmt_skip)]
     #[test]
