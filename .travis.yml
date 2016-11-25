@@ -1,0 +1,23 @@
+language: rust
+
+rust:
+  - stable
+  - beta
+  - nightly
+
+env:
+  global:
+    - CARGO_ARGS=""
+
+matrix:
+  include:
+    - rust: nightly
+      env: CARGO_ARGS="--features clippy"
+
+before_script: (cargo install rustfmt || true)
+
+script:
+  - export PATH="${PATH}:${HOME}/.cargo/bin"
+  - export RUST_BACKTRACE=1
+  - scripts/run_tests.sh
+  - cargo bench
