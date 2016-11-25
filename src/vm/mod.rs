@@ -60,14 +60,16 @@ mod tests {
 
         {
             let mut executable = vec![0,
-                SUB, REG, SP, 4, 0,  // stack allocation for 2 words
+                // stack allocation for 2 words
+                SUB, REG, SP,  REG, SP,  VALUE, 4, 0,
+
                 PUSH, VALUE, 5, 0,
                 PUSH, VALUE, 6, 0,
-                ADD,   REG, A,   PTR, REG, SP,   PTR_WITH_OFFSET, REG, SP, 2, 0,
+                ADD,  REG, A,  PTR, REG, SP,  PTR_WITH_OFFSET, REG, SP, 2, 0,
                 // add a, [sp], [sp+2]
                 POP, B,
                 POP, C,
-                ADD, 4, 0];
+                ADD, REG, SP,  REG, SP,  4, 0];
             let code_length = executable.len() as u8;
             executable[0] = code_length;
 
@@ -85,7 +87,7 @@ mod tests {
                 MOV, REG, A, VALUE, 10, 0,
                 DEC, REG, A,
                 WRITE, REG, A,
-                JNZ, 0];
+                JNZ, 0, 0];
             let code_length = executable.len() as u8;
             executable[0] = code_length;
 
@@ -99,15 +101,15 @@ mod tests {
 
         {
             let mut executable = vec![0,
-                MOV, REG, B, VALUE, 20, 0,       // data address
+                MOV, REG, B, VALUE, 24, 0,       // data address
                 MOV, REG, A, PTR, REG, B,        // dereference B
                 WRITE, REG, A,
                 INC, REG, B,
                 INC, REG, B,
-                JNZ, 0,
+                JNZ, 0, 0,
 
-                3, 0,                            // data with address 23
-                2, 0,                            // data with address 25
+                3, 0,                            // data with address 24
+                2, 0,                            // data with address 26
                 1, 0,
                 0, 0];
             let data_length = 8;
@@ -126,7 +128,7 @@ mod tests {
             let mut executable = vec![0,
                 READ, REG, A,
                 WRITE, REG, A,
-                JNZ, 0];
+                JNZ, 0, 0];
             let code_length = executable.len() as u8;
             executable[0] = code_length;
 
@@ -138,28 +140,28 @@ mod tests {
 
         {
             let mut executable = vec![0,
-                                                   // do
-                READ, REG, A,                      //   a = read
-                SUB, REG, SP, 2, 0,                //   (stack allocation)
+                                                      // do
+                READ, REG, A,                         //   a = read
+                SUB, REG, SP,  REG, SP,  VALUE, 2, 0, //   (stack allocation)
                 PUSH, REG, A,
-                CALL, VALUE, 28, 0,                //   a = f(a)
-                WRITE, REG, A,                     //   print a
-                ADD,  REG, SP,  VALUE,  2, 0,      //   (stack deallocation)
-                JNZ, 0,                            // while a != 0 goto addr 0
-                JMP, 39,                           // exit
+                CALL, VALUE, 35, 0,                   //   a = f(a)
+                WRITE, REG, A,                        //   print a
+                ADD, REG, SP,  REG, SP,  VALUE, 2, 0, //   (stack deallocation)
+                JNZ, 0, 0,                            // while a != 0 jmp addr 0
+                JMP, 63, 0,                           // exit
 
                 // label f
                 PUSH, REG, BP,
                 MOV, REG, BP, REG, SP,
 
                 POP, REG, A,
-                MUL, REG, A, REG, A, VALUE, 2, 0,  // a = a * 2
+                MUL, REG, A, REG, A, VALUE, 2, 0,    // a = a * 2
 
                 MOV, REG, SP, REG, BP,
                 POP, REG, BP,
                 RET,
 
-                NOP                                // optional
+                NOP                                  // optional
             ];
 
             let code_length = executable.len() as u8;
