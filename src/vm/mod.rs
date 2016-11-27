@@ -99,7 +99,7 @@ mod tests {
 
         {
             let mut executable = vec![0, 0,
-                MOV, REG, B, VALUE, 24, 0,       // data address
+                MOV, REG, B, VALUE, 25, 0,       // data address
                 MOV, REG, A, PTR, REG, B,        // dereference B
                 INT, OUTPUT,
                 INC, REG, B,
