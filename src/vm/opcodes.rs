@@ -19,10 +19,6 @@ pub const JE: u8 = 0x21;
 pub const JZ: u8 = 0x22;
 pub const JNE: u8 = 0x23;
 pub const JNZ: u8 = 0x24;
-pub const JL: u8 = 0x25;
-pub const JLE: u8 = 0x26;
-pub const JG: u8 = 0x27;
-pub const JGE: u8 = 0x28;
 
 pub const SHL: u8 = 0x30;
 pub const SHR: u8 = 0x31;

@@ -82,16 +82,17 @@ mod tests {
 
         {
             let mut executable = vec![0, 0,
-                MOV, REG, A, VALUE, 10, 0,
-                DEC, REG, A,
+                MOV, REG, D, VALUE, 10, 0,
+                DEC, REG, D,
                 INT, OUTPUT,
-                JNZ, 2, 0];
+                JNZ, REG, D, VALUE, 2, 0];
             let code_length = executable.len() as u8;
             executable[0] = code_length;
 
             let (output, registers, memory) = run(&[], executable);
 
             assert_eq!(0, registers[A as usize]);
+            assert_eq!(0, registers[D as usize]);
             assert_eq!(&[10, 0, 9, 0, 8, 0, 7, 0, 6, 0, 5, 0,
                          4, 0, 3, 0, 2, 0, 1, 0, 0, 0], output.as_slice());
             assert!(memory.stack_is_empty(registers[SP as usize]));
@@ -100,11 +101,11 @@ mod tests {
         {
             let mut executable = vec![0, 0,
                 MOV, REG, B, VALUE, 25, 0,       // data address
-                MOV, REG, A, PTR, REG, B,        // dereference B
+                MOV, REG, D, PTR, REG, B,        // dereference B
                 INT, OUTPUT,
                 INC, REG, B,
                 INC, REG, B,
-                JNZ, 2, 0,
+                JNZ, REG, D, VALUE, 2, 0,
 
                 3, 0,                            // data with address 24
                 2, 0,                            // data with address 26
@@ -118,6 +119,7 @@ mod tests {
 
             assert_eq!(8, memory.data.len());
             assert_eq!(0, registers[A as usize]);
+            assert_eq!(0, registers[D as usize]);
             assert_eq!(&[3, 0, 2, 0, 1, 0, 0, 0], output.as_slice());
             assert!(memory.stack_is_empty(registers[SP as usize]));
         }
@@ -126,13 +128,14 @@ mod tests {
             let mut executable = vec![0, 0,
                 INT, INPUT,
                 INT, OUTPUT,
-                JNZ, 2, 0];
+                JNZ, REG, D, VALUE, 2, 0];
             let code_length = executable.len() as u8;
             executable[0] = code_length;
 
             let (output, registers, memory) = run(&[3, 0, 2, 0, 1, 0, 0, 0], executable);
 
             assert_eq!(0, registers[A as usize]);
+            assert_eq!(0, registers[D as usize]);
             assert_eq!(&[3, 0, 2, 0, 1, 0, 0, 0], output.as_slice());
             assert!(memory.stack_is_empty(registers[SP as usize]));
         }
@@ -140,21 +143,21 @@ mod tests {
         {
             let mut executable = vec![0, 0,
                                                       // do
-                INT, INPUT,                           // a = read
+                INT, INPUT,                           // d = read
                 SUB, REG, SP,  REG, SP,  VALUE, 2, 0, //   (stack allocation)
-                PUSH, REG, A,
-                CALL, VALUE, 35, 0,                   //   a = f(a)
+                PUSH, REG, D,
+                CALL, VALUE, 38, 0,                   //   d = f(d)
                 INT, OUTPUT,                          //   print a
                 ADD, REG, SP,  REG, SP,  VALUE, 2, 0, //   (stack deallocation)
-                JNZ, 2, 0,                            // while a != 0 jmp addr 0
-                JMP, 63, 0,                           // exit
+                JNZ, REG, D, VALUE, 2, 0,             // while d != 0 jmp addr 0
+                JMP, VALUE, 66, 0,                    // exit
 
                 // label f
                 PUSH, REG, BP,
                 MOV, REG, BP, REG, SP,
 
-                POP, REG, A,
-                MUL, REG, A, REG, A, VALUE, 2, 0,    // a = a * 2
+                POP, REG, D,
+                MUL, REG, D, REG, D, VALUE, 2, 0,    // a = a * 2
 
                 MOV, REG, SP, REG, BP,
                 POP, REG, BP,
@@ -170,6 +173,7 @@ mod tests {
                                                   executable);
 
             assert_eq!(0, registers[A as usize]);
+            assert_eq!(0, registers[D as usize]);
             assert_eq!(&[6, 0, 4, 0, 1, 0, 0, 0], output.as_slice());
             assert!(memory.stack_is_empty(registers[SP as usize]));
         }
