@@ -131,6 +131,7 @@ mod tests {
             executable[0] = code_length;
 
             let (output, registers, memory) = run(&[3, 0, 2, 0, 1, 0, 0, 0], executable);
+
             assert_eq!(0, registers[A as usize]);
             assert_eq!(&[3, 0, 2, 0, 1, 0, 0, 0], output.as_slice());
             assert!(memory.stack_is_empty(registers[SP as usize]));
@@ -170,6 +171,36 @@ mod tests {
 
             assert_eq!(0, registers[A as usize]);
             assert_eq!(&[6, 0, 4, 0, 1, 0, 0, 0], output.as_slice());
+            assert!(memory.stack_is_empty(registers[SP as usize]));
+        }
+
+        {
+            let mut executable = vec![0, 0,
+                DIV, REG, A, VALUE, 1, VALUE, 0,
+                MOV, REG, A, 123,
+            ];
+            let code_length = executable.len() as u8;
+            executable[0] = code_length;
+
+            let (output, registers, memory) = run(&[], executable);
+
+            assert_eq!(0, registers[A as usize]);
+            assert_eq!(b"Unknown Error", output.as_slice());
+            assert!(memory.stack_is_empty(registers[SP as usize]));
+        }
+
+        {
+            let mut executable = vec![0, 0,
+                MOV,  PTR, VALUE,  255, 255,  VALUE, 1,
+                MOV, A, 123,
+            ];
+            let code_length = executable.len() as u8;
+            executable[0] = code_length;
+
+            let (output, registers, memory) = run(&[], executable);
+
+            assert_eq!(0, registers[A as usize]);
+            assert_eq!(b"Segfault", output.as_slice());
             assert!(memory.stack_is_empty(registers[SP as usize]));
         }
     }
