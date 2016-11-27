@@ -24,8 +24,17 @@ pub const JLE: u8 = 0x26;
 pub const JG: u8 = 0x27;
 pub const JGE: u8 = 0x28;
 
-pub const CALL: u8 = 0x30;
-pub const RET: u8 = 0x31;
+pub const SHL: u8 = 0x30;
+pub const SHR: u8 = 0x31;
 
-pub const READ: u8 = 0x40;
-pub const WRITE: u8 = 0x41;
+pub const AND: u8 = 0x40;
+pub const OR: u8 = 0x41;
+pub const NOT: u8 = 0x42;
+pub const XOR: u8 = 0x43;
+pub const TEST: u8 = 0x44;
+pub const CMP: u8 = 0x45;
+
+pub const CALL: u8 = 0x51;
+pub const RET: u8 = 0x52;
+
+pub const INT: u8 = 0x60;

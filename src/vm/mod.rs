@@ -1,10 +1,11 @@
 use common::*;
 use std::io::{Read, Write};
 
+mod interrupts;
 mod memory;
-mod registers;
-mod opcodes;
 mod modes;
+mod opcodes;
+mod registers;
 
 use self::memory::*;
 
@@ -24,14 +25,11 @@ impl<'a, R: Read, W: Write> VM<'a, R, W> {
     pub fn run(&mut self, executable: Data) {
         unimplemented!()
     }
-
-    fn parse_executable(executable: Data) -> Memory<'a> {
-        unimplemented!()
-    }
 }
 
 #[cfg(test)]
 mod tests {
+    use self::interrupts::*;
     use self::modes::*;
     use self::opcodes::*;
     use self::registers::*;
@@ -44,7 +42,7 @@ mod tests {
         assert!(run(&[], vec![]).0.is_empty());
 
         {
-            let mut executable = vec![0,
+            let mut executable = vec![0, 0,
                 MOV, REG, A, VALUE, 123, 0,
                 ADD, REG, B, REG, A, REG, A];
             let code_length = executable.len() as u8;
@@ -59,7 +57,7 @@ mod tests {
         }
 
         {
-            let mut executable = vec![0,
+            let mut executable = vec![0, 0,
                 // stack allocation for 2 words
                 SUB, REG, SP,  REG, SP,  VALUE, 4, 0,
 
@@ -83,11 +81,11 @@ mod tests {
         }
 
         {
-            let mut executable = vec![0,
+            let mut executable = vec![0, 0,
                 MOV, REG, A, VALUE, 10, 0,
                 DEC, REG, A,
-                WRITE, REG, A,
-                JNZ, 0, 0];
+                INT, OUTPUT,
+                JNZ, 2, 0];
             let code_length = executable.len() as u8;
             executable[0] = code_length;
 
@@ -100,13 +98,13 @@ mod tests {
         }
 
         {
-            let mut executable = vec![0,
+            let mut executable = vec![0, 0,
                 MOV, REG, B, VALUE, 24, 0,       // data address
                 MOV, REG, A, PTR, REG, B,        // dereference B
-                WRITE, REG, A,
+                INT, OUTPUT,
                 INC, REG, B,
                 INC, REG, B,
-                JNZ, 0, 0,
+                JNZ, 2, 0,
 
                 3, 0,                            // data with address 24
                 2, 0,                            // data with address 26
@@ -125,10 +123,10 @@ mod tests {
         }
 
         {
-            let mut executable = vec![0,
-                READ, REG, A,
-                WRITE, REG, A,
-                JNZ, 0, 0];
+            let mut executable = vec![0, 0,
+                INT, INPUT,
+                INT, OUTPUT,
+                JNZ, 2, 0];
             let code_length = executable.len() as u8;
             executable[0] = code_length;
 
@@ -139,15 +137,15 @@ mod tests {
         }
 
         {
-            let mut executable = vec![0,
+            let mut executable = vec![0, 0,
                                                       // do
-                READ, REG, A,                         //   a = read
+                INT, INPUT,                           // a = read
                 SUB, REG, SP,  REG, SP,  VALUE, 2, 0, //   (stack allocation)
                 PUSH, REG, A,
                 CALL, VALUE, 35, 0,                   //   a = f(a)
-                WRITE, REG, A,                        //   print a
+                INT, OUTPUT,                          //   print a
                 ADD, REG, SP,  REG, SP,  VALUE, 2, 0, //   (stack deallocation)
-                JNZ, 0, 0,                            // while a != 0 jmp addr 0
+                JNZ, 2, 0,                            // while a != 0 jmp addr 0
                 JMP, 63, 0,                           // exit
 
                 // label f
