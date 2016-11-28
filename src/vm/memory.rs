@@ -8,7 +8,7 @@ pub struct Memory {
     code_size: usize,
 }
 
-const CODE_OFFSET: usize = 2;
+pub const CODE_OFFSET: usize = 2;
 
 impl Memory {
     pub fn from_executable(mut executable: Data) -> Result<Memory> {
@@ -34,6 +34,11 @@ impl Memory {
 
     pub fn code(&self) -> DataSlice {
         &self.raw[CODE_OFFSET..(CODE_OFFSET + self.code_size)]
+    }
+
+    pub fn is_in_code(&self, index: Word) -> bool {
+        let index = index as usize;
+        index >= CODE_OFFSET && index <= CODE_OFFSET + self.code_size
     }
 
     pub fn data(&self) -> DataSlice {

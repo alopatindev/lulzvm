@@ -8,6 +8,9 @@ mod opcodes;
 mod registers;
 
 use self::memory::*;
+use self::modes::*;
+use self::opcodes::*;
+use self::registers::*;
 
 pub struct VM<R: Read, W: Write> {
     input: R,
@@ -32,16 +35,47 @@ impl<R: Read, W: Write> VM<R, W> {
     }
 
     pub fn run(&mut self) {
+        self.set_register(PC, CODE_OFFSET as Word);
+
+        let mut args = vec![];
+        while self.memory.is_in_code(self.get_register(PC)) {
+            self.fetch()
+                .decode(&mut args)
+                .execute(&args);
+        }
+    }
+
+    fn fetch(&mut self) -> &mut Self {
+        let opcode = self.get_register(PC);
+        self.set_register(IR, opcode);
+        self.increment_register(PC);
+        self
+    }
+
+    fn decode(&mut self, args: &mut Words) -> &mut Self {
         unimplemented!()
+    }
+
+    fn execute(&mut self, args: WordsSlice) {
+        unimplemented!()
+    }
+
+    fn get_register(&self, id: u8) -> Word {
+        self.registers[id as usize]
+    }
+
+    fn set_register(&mut self, id: u8, value: Word) {
+        self.registers[id as usize] = value;
+    }
+
+    fn increment_register(&mut self, id: u8) {
+        self.registers[id as usize] += 1;
     }
 }
 
 #[cfg(test)]
 mod tests {
     use self::interrupts::*;
-    use self::modes::*;
-    use self::opcodes::*;
-    use self::registers::*;
     use std::io::{BufReader, BufWriter};
     use super::*;
 
