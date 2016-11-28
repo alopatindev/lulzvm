@@ -1,5 +1,5 @@
 use common::*;
-use std::io::{Read, Write};
+use std::io::{Read, Write, Result};
 
 mod interrupts;
 mod memory;
@@ -9,20 +9,29 @@ mod registers;
 
 use self::memory::*;
 
-pub struct VM<'a, R: Read, W: Write> {
+pub struct VM<R: Read, W: Write> {
     input: R,
     output: W,
 
     registers: Registers,
-    memory: Memory<'a>,
+    memory: Memory,
 }
 
-impl<'a, R: Read, W: Write> VM<'a, R, W> {
-    pub fn new(input: R, output: W) -> Self {
-        unimplemented!()
+impl<R: Read, W: Write> VM<R, W> {
+    pub fn new(input: R, output: W, executable: Data) -> Result<Self> {
+        let memory = try!(Memory::from_executable(executable));
+
+        let result = VM {
+            input: input,
+            output: output,
+            registers: [0; REGISTERS],
+            memory: memory,
+        };
+
+        Ok(result)
     }
 
-    pub fn run(&mut self, executable: Data) {
+    pub fn run(&mut self) {
         unimplemented!()
     }
 }
@@ -45,8 +54,8 @@ mod tests {
             let mut executable = vec![0, 0,
                 MOV, REG, A, VALUE, 123, 0,
                 ADD, REG, B, REG, A, REG, A];
-            let code_length = executable.len() as u8;
-            executable[0] = code_length;
+            let code_size = executable.len() as u8;
+            executable[0] = code_size;
 
             let (output, registers, memory) = run(&[], executable);
 
@@ -68,8 +77,8 @@ mod tests {
                 POP, B,
                 POP, C,
                 ADD, REG, SP,  REG, SP,  4, 0];
-            let code_length = executable.len() as u8;
-            executable[0] = code_length;
+            let code_size = executable.len() as u8;
+            executable[0] = code_size;
 
             let (output, registers, memory)  = run(&[], executable);
 
@@ -86,8 +95,8 @@ mod tests {
                 DEC, REG, D,
                 INT, OUTPUT,
                 JNZ, REG, D, VALUE, 2, 0];
-            let code_length = executable.len() as u8;
-            executable[0] = code_length;
+            let code_size = executable.len() as u8;
+            executable[0] = code_size;
 
             let (output, registers, memory) = run(&[], executable);
 
@@ -112,12 +121,12 @@ mod tests {
                 1, 0,
                 0, 0];
             let data_length = 8;
-            let code_length = executable.len() as u8 - data_length;
-            executable[0] = code_length;
+            let code_size = executable.len() as u8 - data_length;
+            executable[0] = code_size;
 
             let (output, registers, memory) = run(&[], executable);
 
-            assert_eq!(8, memory.data.len());
+            // assert_eq!(8, memory.data().len()); // FIXME
             assert_eq!(0, registers[A as usize]);
             assert_eq!(0, registers[D as usize]);
             assert_eq!(&[3, 0, 2, 0, 1, 0, 0, 0], output.as_slice());
@@ -129,8 +138,8 @@ mod tests {
                 INT, INPUT,
                 INT, OUTPUT,
                 JNZ, REG, D, VALUE, 2, 0];
-            let code_length = executable.len() as u8;
-            executable[0] = code_length;
+            let code_size = executable.len() as u8;
+            executable[0] = code_size;
 
             let (output, registers, memory) = run(&[3, 0, 2, 0, 1, 0, 0, 0], executable);
 
@@ -166,8 +175,8 @@ mod tests {
                 NOP                                  // optional
             ];
 
-            let code_length = executable.len() as u8;
-            executable[0] = code_length;
+            let code_size = executable.len() as u8;
+            executable[0] = code_size;
 
             let (output, registers, memory) = run(&[3, 0, 2, 0, 1, 0, 0, 0],
                                                   executable);
@@ -183,8 +192,8 @@ mod tests {
                 DIV, REG, A, VALUE, 1, VALUE, 0,
                 MOV, REG, A, 123,
             ];
-            let code_length = executable.len() as u8;
-            executable[0] = code_length;
+            let code_size = executable.len() as u8;
+            executable[0] = code_size;
 
             let (output, registers, memory) = run(&[], executable);
 
@@ -198,8 +207,8 @@ mod tests {
                 MOV,  PTR, VALUE,  255, 255,  VALUE, 1,
                 MOV, A, 123,
             ];
-            let code_length = executable.len() as u8;
-            executable[0] = code_length;
+            let code_size = executable.len() as u8;
+            executable[0] = code_size;
 
             let (output, registers, memory) = run(&[], executable);
 
@@ -209,14 +218,14 @@ mod tests {
         }
     }
 
-    fn run<'a>(input: &[u8], executable: Data) -> (Data, Registers, Memory<'a>) {
+    fn run(input: &[u8], executable: Data) -> (Data, Registers, Memory) {
         let input = BufReader::new(input);
 
         let output: Data = vec![];
         let output = BufWriter::new(output);
 
-        let mut vm = VM::new(input, output);
-        vm.run(executable);
+        let mut vm = VM::new(input, output, executable).unwrap();
+        vm.run();
 
         let output = vm.output
             .get_mut()

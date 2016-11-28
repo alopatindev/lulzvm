@@ -11,7 +11,7 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
-#byteorder = "0.5.3"
+byteorder = "0.5.3"
 clap = "2.19.0"
 clippy = {version="*", optional = true}
 #libc = "0.2.17"
