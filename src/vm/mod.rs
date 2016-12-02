@@ -21,17 +21,15 @@ pub struct VM<R: Read, W: Write> {
 }
 
 impl<R: Read, W: Write> VM<R, W> {
-    pub fn new(input: R, output: W, executable: Data) -> Result<Self> {
-        let memory = try!(Memory::from_executable(executable));
+    pub fn new(input: R, output: W, executable: Data) -> Self {
+        let memory = Memory::from_executable(executable);
 
-        let result = VM {
+        VM {
             input: input,
             output: output,
             registers: [0; REGISTERS],
             memory: memory,
-        };
-
-        Ok(result)
+        }
     }
 
     pub fn run(&mut self) {
@@ -45,6 +43,15 @@ impl<R: Read, W: Write> VM<R, W> {
                 .process_events();
             args.clear();
         }
+    }
+
+    pub fn stack(&self) -> DataSlice {
+        let sp = self.get_register(SP);
+        self.memory.stack(sp)
+    }
+
+    pub fn data(&self) -> DataSlice {
+        self.memory.data()
     }
 
     fn fetch(&mut self) -> &mut Self {
@@ -127,151 +134,180 @@ mod tests {
         assert!(run(&[], vec![]).0.is_empty());
 
         {
-            let mut executable = vec![0, 0,
-                PUSH, VALUE, 5,
-                PUSH, VALUE, 6,
-                ADD, STACK, OFFSET, 0, 0];   // pop 2 bytes, add and push
+            let mut executable = vec![
+                0, 0,
+                PUSH, 3,
+                PUSH, 4,
+                ADD];     // pop 2 bytes, add and push
             let code_size = executable.len() as u8;
             executable[0] = code_size;
 
-            let (output, registers, memory)  = run(&[], executable);
-            // TODO: stack?
+            let (output, vm) = run(&[], executable);
 
-            // check 11
+            assert_eq!(&[7], vm.stack());
             assert!(output.is_empty());
         }
 
-        // {
-        //     let mut executable = vec![0, 0,
-        //         PUSH, VALUE, 10,
-        //         DEC, STACK, VALUE, 0, 0,
-        //         INT, OUTPUT,
-        //         JNZ,  STACK, VALUE, 0, 0,  DATA, 5, 0];
-        //     let code_size = executable.len() as u8;
-        //     executable[0] = code_size;
-        //
-        //     let (output, registers, memory) = run(&[], executable);
-        //
-        //     assert_eq!(0, registers[A as usize]);
-        //     assert_eq!(0, registers[D as usize]);
-        //     assert_eq!(&[9, 8, 7, 6, 5, 4, 3, 2, 1, 0], output.as_slice());
-        // }
-        //
-        // {
-        //     let mut executable = vec![0, 0,
-        //         PUSH, VALUE, 25,
-        //         PUSH, VALUE, 0,                  // data address
-        //         LOAD, STACK,
-        //         MOV, REG, D, PTR, REG, B,        // dereference B
-        //         INT, OUTPUT,
-        //         INC, REG, B,
-        //         INC, REG, B,
-        //         JNZ, REG, D, VALUE, 2, 0,
-        //
-        //         3, 0,                            // data with address 24
-        //         2, 0,                            // data with address 26
-        //         1, 0,
-        //         0, 0];
-        //     let data_length = 8;
-        //     let code_size = executable.len() as u8 - data_length;
-        //     executable[0] = code_size;
-        //
-        //     let (output, registers, memory) = run(&[], executable);
-        //
-        //     // assert_eq!(8, memory.data().len()); // FIXME
-        //     assert_eq!(0, registers[A as usize]);
-        //     assert_eq!(0, registers[D as usize]);
-        //     assert_eq!(&[3, 0, 2, 0, 1, 0, 0, 0], output.as_slice());
-        // }
-        //
-        // {
-        //     let mut executable = vec![0, 0,
-        //         INT, INPUT,
-        //         INT, OUTPUT,
-        //         JNZ, REG, D, VALUE, 2, 0];
-        //     let code_size = executable.len() as u8;
-        //     executable[0] = code_size;
-        //
-        //     let (output, registers, memory) = run(&[3, 0, 2, 0, 1, 0, 0, 0], executable);
-        //
-        //     assert_eq!(0, registers[A as usize]);
-        //     assert_eq!(0, registers[D as usize]);
-        //     assert_eq!(&[3, 0, 2, 0, 1, 0, 0, 0], output.as_slice());
-        // }
-        //
-        // {
-        //     let mut executable = vec![0, 0,
-        //                                               // do
-        //         INT, INPUT,                           // d = read
-        //         SUB, REG, SP,  REG, SP,  VALUE, 2, 0, //   (stack allocation)
-        //         PUSH, REG, D,
-        //         CALL, VALUE, 38, 0,                   //   d = f(d)
-        //         INT, OUTPUT,                          //   print a
-        //         ADD, REG, SP,  REG, SP,  VALUE, 2, 0, //   (stack deallocation)
-        //         JNZ, REG, D, VALUE, 2, 0,             // while d != 0 jmp addr 0
-        //         JMP, VALUE, 66, 0,                    // exit
-        //
-        //         // label f
-        //         PUSH, REG, BP,
-        //         MOV, REG, BP, REG, SP,
-        //
-        //         POP, REG, D,
-        //         MUL, REG, D, REG, D, VALUE, 2, 0,    // a = a * 2
-        //
-        //         MOV, REG, SP, REG, BP,
-        //         POP, REG, BP,
-        //         RET,
-        //
-        //         NOP                                  // optional
-        //     ];
-        //
-        //     let code_size = executable.len() as u8;
-        //     executable[0] = code_size;
-        //
-        //     let (output, registers, memory) = run(&[3, 0, 2, 0, 1, 0, 0, 0],
-        //                                           executable);
-        //
-        //     assert_eq!(0, registers[A as usize]);
-        //     assert_eq!(0, registers[D as usize]);
-        //     assert_eq!(&[6, 0, 4, 0, 1, 0, 0, 0], output.as_slice());
-        // }
-        //
-        // {
-        //     let mut executable = vec![0, 0,
-        //         DIV, REG, A, VALUE, 1, VALUE, 0,
-        //         MOV, REG, A, 123,
-        //     ];
-        //     let code_size = executable.len() as u8;
-        //     executable[0] = code_size;
-        //
-        //     let (output, registers, memory) = run(&[], executable);
-        //
-        //     assert_eq!(0, registers[A as usize]);
-        //     assert_eq!(b"Unknown Error", output.as_slice());
-        // }
-        //
-        // {
-        //     let mut executable = vec![0, 0,
-        //         MOV,  PTR, VALUE,  255, 255,  VALUE, 1,
-        //         MOV, A, 123,
-        //     ];
-        //     let code_size = executable.len() as u8;
-        //     executable[0] = code_size;
-        //
-        //     let (output, registers, memory) = run(&[], executable);
-        //
-        //     assert_eq!(0, registers[A as usize]);
-        //     assert_eq!(b"Segfault", output.as_slice());
-        // }
+        {
+            let mut executable = vec![
+                0, 0,
+                PUSH, 10,
+                DEC,
+                INT, OUTPUT,
+                JNE, 0,  4, 0];
+            let code_size = executable.len() as u8;
+            executable[0] = code_size;
+
+            let (output, vm) = run(&[], executable);
+
+            assert_eq!(&[9, 8, 7, 6, 5, 4, 3, 2, 1, 0], output.as_slice());
+            assert_eq!([0], vm.stack());
+        }
+
+        {
+            let mut executable = vec![
+                0, 0,
+                PUSH, 0,                         // offset
+                LOAD, PTR_WITH_OFFSET, 20, 0,    // data segment
+                INT, OUTPUT,
+                JE, 0,  19, 0,
+                POP,
+                INC,
+                JMP, 4, 0,
+                NOP,
+                3, 2, 1, 0];
+            let data_size = 4;
+            let code_size = executable.len() as u8 - data_size;
+            executable[0] = code_size;
+
+            let (output, vm) = run(&[], executable);
+
+            assert_eq!(4, vm.data().len());
+            assert_eq!(&[0], vm.stack());
+            assert_eq!(&[3, 2, 1], output.as_slice());
+        }
+
+        {
+            let mut executable = vec![
+                0, 0,
+                INT, INPUT,
+                INT, OUTPUT,
+                JNE, 0,  2, 0];
+            let code_size = executable.len() as u8;
+            executable[0] = code_size;
+
+            let input = [3, 2, 1, 0];
+            let (output, vm) = run(&input, executable);
+
+            assert_eq!(&[0, 1, 2, 3], vm.stack());
+            assert_eq!(&[3, 2, 1, 0], output.as_slice());
+        }
+
+        {
+            let mut executable = vec![
+                0, 0,
+                PUSH, 4,
+                PUSH, 12,
+                DIV];
+            let code_size = executable.len() as u8;
+            executable[0] = code_size;
+
+            let (output, vm) = run(&[], executable);
+
+            assert_eq!(b"Unknown Error", output.as_slice());
+            assert_eq!(&[3], vm.stack());
+        }
+
+        {
+            let mut executable = vec![
+                0, 0,
+                PUSH, 0,
+                PUSH, 1,
+                DIV];
+            let code_size = executable.len() as u8;
+            executable[0] = code_size;
+
+            let (output, vm) = run(&[], executable);
+
+            assert_eq!(b"Unknown Error", output.as_slice());
+            assert!(vm.stack().is_empty());
+        }
+
+        {
+            let mut executable = vec![
+                0, 0,
+                POP];
+            let code_size = executable.len() as u8;
+            executable[0] = code_size;
+
+            let (output, vm) = run(&[], executable);
+
+            assert_eq!(b"Segfault", output.as_slice());
+            assert!(vm.stack().is_empty());
+        }
+
+        {
+            let mut executable = vec![
+                0, 0,
+                LOAD, PTR, 255, 255];
+            let code_size = executable.len() as u8;
+            executable[0] = code_size;
+
+            let (output, vm) = run(&[], executable);
+
+            assert_eq!(b"Segfault", output.as_slice());
+            assert!(vm.stack().is_empty());
+        }
+
+        {
+            let mut executable = vec![
+                0, 0,
+                LOAD, PTR, 6, 0,
+                123];
+            let code_size = executable.len() as u8;
+            executable[0] = code_size;
+
+            let (output, vm) = run(&[], executable);
+
+            assert_eq!(&[123], vm.stack());
+        }
+
+        {
+            let mut executable = vec![
+                0, 0,
+                                             // do
+                INT, INPUT,                  //   d = read
+                CALL, PTR, 20, 0,            //   d = f(d)
+                INT, OUTPUT,                 //   print a
+                JE, 0,  18, 0,               // while d != 0
+                POP,
+                JMP, 2, 0,                   // goto do
+                INT, TERMINATE,              // exit
+
+                // label f
+                PUSH, 2,
+                MUL,                         // a = a * 2
+                RET];
+
+            let code_size = executable.len() as u8;
+            executable[0] = code_size;
+
+            let input = [3, 2, 1, 0];
+            let (output, vm) = run(&input, executable);
+
+            assert_eq!(&[6, 4, 2, 0], output.as_slice());
+        }
     }
 
-    fn run(input: &[u8], executable: Data) -> (Data, Registers, Memory) {
+    fn run(input: DataSlice,
+           executable: Data)
+           -> (Data, VM<BufReader<DataSlice>, BufWriter<Data>>) {
         let input = BufReader::new(input);
 
         let output: Data = vec![];
         let output = BufWriter::new(output);
 
-        let mut vm = VM::new(input, output, executable).unwrap();
+        let mut vm = VM::new(input, output, executable);
         vm.run();
 
         let output = vm.output
@@ -281,6 +317,6 @@ mod tests {
             .map(|x| *x)
             .collect::<Data>();
 
-        (output, vm.registers, vm.memory)
+        (output, vm)
     }
 }
