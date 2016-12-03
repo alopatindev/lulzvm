@@ -132,11 +132,12 @@ mod tests {
     #[test]
     fn simple() {
         {
-            let (output, vm) = run(&[], vec![]);
+            let executable = vec![0, 0];
+            let (output, vm) = run(&[], executable);
 
-            assert!(output.is_empty());
             assert!(vm.stack().is_empty());
             assert!(vm.data().is_empty());
+            assert!(output.is_empty());
         }
 
         {
@@ -152,6 +153,7 @@ mod tests {
             let (output, vm) = run(&[], executable);
 
             assert_eq!(&[7], vm.stack());
+            assert!(vm.data().is_empty());
             assert!(output.is_empty());
         }
 
@@ -168,8 +170,9 @@ mod tests {
 
             let (output, vm) = run(&[], executable);
 
-            assert_eq!(&[9, 8, 7, 6, 5, 4, 3, 2, 1, 0], output.as_slice());
             assert_eq!([0], vm.stack());
+            assert!(vm.data().is_empty());
+            assert_eq!(&[9, 8, 7, 6, 5, 4, 3, 2, 1, 0], output.as_slice());
         }
 
         {
@@ -195,8 +198,8 @@ mod tests {
 
             let (output, vm) = run(&[], executable);
 
-            assert_eq!(4, vm.data().len());
             assert_eq!(&[0], vm.stack());
+            assert_eq!(&[3, 2, 1, 0], vm.data());
             assert_eq!(&[3, 2, 1], output.as_slice());
         }
 
@@ -222,6 +225,7 @@ mod tests {
             let (output, vm) = run(&input, executable);
 
             assert_eq!(&[0, 0], vm.stack());
+            assert!(vm.data().is_empty());
             assert_eq!(&[3, 2, 1, 0], output.as_slice());
         }
 
@@ -236,8 +240,9 @@ mod tests {
 
             let (output, vm) = run(&[], executable);
 
-            assert!(output.is_empty());
             assert_eq!(&[3], vm.stack());
+            assert!(vm.data().is_empty());
+            assert!(output.is_empty());
         }
 
         {
@@ -251,8 +256,9 @@ mod tests {
 
             let (output, vm) = run(&[], executable);
 
-            assert_eq!(b"Unknown Error", output.as_slice());
             assert!(vm.stack().is_empty());
+            assert!(vm.data().is_empty());
+            assert_eq!(b"Unknown Error", output.as_slice());
         }
 
         {
@@ -264,8 +270,9 @@ mod tests {
 
             let (output, vm) = run(&[], executable);
 
-            assert_eq!(b"Segfault", output.as_slice());
             assert!(vm.stack().is_empty());
+            assert!(vm.data().is_empty());
+            assert_eq!(b"Segfault", output.as_slice());
         }
 
         {
@@ -277,8 +284,9 @@ mod tests {
 
             let (output, vm) = run(&[], executable);
 
-            assert_eq!(b"Segfault", output.as_slice());
             assert!(vm.stack().is_empty());
+            assert!(vm.data().is_empty());
+            assert_eq!(b"Segfault", output.as_slice());
         }
 
         {
@@ -291,8 +299,9 @@ mod tests {
 
             let (output, vm) = run(&[], executable);
 
-            assert_eq!(b"Segfault", output.as_slice());
             assert!(vm.stack().is_empty());
+            assert!(vm.data().is_empty());
+            assert_eq!(b"Segfault", output.as_slice());
         }
 
         {
@@ -307,6 +316,8 @@ mod tests {
             let (output, vm) = run(&[], executable);
 
             assert_eq!(&[123], vm.stack());
+            assert!(vm.data().is_empty());
+            assert!(output.is_empty());
         }
 
         {
@@ -333,8 +344,9 @@ mod tests {
             let input = [3, 2, 1, 0];
             let (output, vm) = run(&input, executable);
 
-            assert_eq!(&[6, 4, 2, 0], output.as_slice());
             assert_eq!(&[0, 0], vm.stack());
+            assert!(vm.data().is_empty());
+            assert_eq!(&[6, 4, 2, 0], output.as_slice());
         }
 
         {
@@ -359,6 +371,30 @@ mod tests {
 
             assert_eq!(&[3], vm.stack());
             assert_eq!(&[2], vm.data());
+            assert!(output.is_empty());
+        }
+
+        {
+            let mut executable = vec![
+                0, 0,
+                PUSH, 0,                       // i
+                PUSH, 5,                       // x
+                                               // loop:
+                DEC,
+                SWP,
+                INC,
+                SWP,
+                JLE, 16, 0,                    // if x <= i: goto end
+                JMP, 6, 0];                    // goto loop
+            let data_size = 1;
+            let code_size = executable.len() as u8 - data_size;
+            executable[0] = code_size;
+
+            let (output, vm) = run(&[], executable);
+
+            assert_eq!(&[2, 3], vm.stack());
+            assert!(vm.data().is_empty());
+            assert!(output.is_empty());
         }
     }
 
