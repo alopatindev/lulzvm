@@ -1,4 +1,5 @@
 use common::*;
+use std::fmt;
 use std::io::{Read, Write, Result};
 
 mod events;
@@ -27,13 +28,16 @@ impl<R: Read, W: Write> VM<R, W> {
         VM {
             input: input,
             output: output,
-            registers: [0; REGISTERS],
+            registers: [0; REGISTERS as usize],
             memory: memory,
         }
     }
 
     pub fn run(&mut self) {
         self.set_register(PC, CODE_OFFSET as Word);
+
+        let stack_offset = self.memory.stack_offset;
+        self.set_register(SP, stack_offset);
 
         let mut args = vec![];
         while self.memory.is_in_code(self.get_register(PC)) {
@@ -50,36 +54,66 @@ impl<R: Read, W: Write> VM<R, W> {
         self.memory.stack(sp)
     }
 
+    pub fn code(&self) -> DataSlice {
+        self.memory.code()
+    }
+
     pub fn data(&self) -> DataSlice {
         self.memory.data()
     }
 
     fn fetch(&mut self) -> &mut Self {
-        let code_offset = self.get_register(PC);
-        let opcode = self.memory.get(code_offset) as Word;
+        let pc = self.get_register(PC);
+        let opcode = self.next_code_byte() as Word;
+        debug!("fetch {:?}", self);
         self.set_register(IR, opcode);
-        self.increment_register(PC);
         self
     }
 
-    fn decode(&mut self, args: &mut Words) -> &mut Self {
-        unimplemented!()
-        // match self.get_register(IR) as u8 {
-        //     MOV => {
-        //         args.push(self.read_memory());
-        //         args.push(self.read_memory());
-        //     }
-        //     _ => unimplemented!(),
-        // }
-        // self
+    fn decode(&mut self, args: &mut Data) -> &mut Self {
+        let opcode = self.get_register(IR) as u8;
+        let pc = self.get_register(PC);
+        debug!("decode {:?}", self);
+
+        match opcode {
+            PUSH => args.push(self.next_code_byte()),
+            ADD => {
+                args.push(self.stack_pop());
+                args.push(self.stack_pop());
+            }
+            _ => unimplemented!(),
+        }
+
+        self
     }
 
-    fn execute(&mut self, args: WordsSlice) -> &mut Self {
-        unimplemented!()
+    fn execute(&mut self, args: DataSlice) -> &mut Self {
+        let opcode = self.get_register(IR) as u8;
+        debug!("execute {:?}", self);
+
+        match opcode {
+            PUSH => {
+                self.stack_push(args[0]);
+            }
+            ADD => {
+                let value = self.stack_pop() + self.stack_pop();
+                self.stack_push(value);
+            }
+            _ => unimplemented!(),
+        }
+
+        self
     }
 
     fn process_events(&mut self) {
         unimplemented!()
+    }
+
+    fn next_code_byte(&mut self) -> u8 {
+        let code_offset = self.get_register(PC);
+        let value = self.memory.get(code_offset);
+        self.increment_register(PC);
+        value
     }
 
     // fn read_memory(&mut self) -> Word {
@@ -120,10 +154,41 @@ impl<R: Read, W: Write> VM<R, W> {
     fn increment_register(&mut self, id: u8) {
         self.registers[id as usize] += 1;
     }
+
+    fn decrement_register(&mut self, id: u8) {
+        self.registers[id as usize] -= 1;
+    }
+
+    fn stack_pop(&mut self) -> u8 {
+        let sp = self.get_register(SP);
+        let value = self.memory.get(sp);
+        self.increment_register(SP);
+        value
+    }
+
+    fn stack_push(&mut self, value: u8) {
+        self.decrement_register(SP);
+        let sp = self.get_register(SP);
+        self.memory.put(sp, value);
+    }
+}
+
+impl<R: Read, W: Write> fmt::Debug for VM<R, W> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f,
+               "PC={} SP={} IR={} EP={} stack=[{}] code=[{}]",
+               u16_to_hex(self.get_register(PC)),
+               u16_to_hex(self.get_register(SP)),
+               u16_to_hex(self.get_register(IR)),
+               u16_to_hex(self.get_register(EP)),
+               data_to_hex(self.stack()),
+               data_to_hex(self.code()))
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use env_logger;
     use self::events::*;
     use std::io::{BufReader, BufWriter};
     use super::*;
@@ -131,6 +196,8 @@ mod tests {
     #[cfg_attr(rustfmt, rustfmt_skip)]
     #[test]
     fn simple() {
+        env_logger::init().unwrap();
+
         {
             let executable = vec![0, 0];
             let (output, vm) = run(&[], executable);
@@ -143,16 +210,46 @@ mod tests {
         {
             let mut executable = vec![
                 0, 0,
-                PUSH, 3,                       // b
-                PUSH, 4,                       // a
-                ADD];                          // pop 2 bytes,
-                                               // add (a + b) and push
-            let code_size = executable.len() as u8;
+                PUSH, 0x55];
+            let code_size = (executable.len() as Word - CODE_OFFSET) as u8;
             executable[0] = code_size;
 
             let (output, vm) = run(&[], executable);
 
-            assert_eq!(&[7], vm.stack());
+            assert_eq!(&[0x55], vm.stack());
+            assert!(vm.data().is_empty());
+            assert!(output.is_empty());
+        }
+
+        {
+            let mut executable = vec![
+                0, 0,
+                PUSH, 0x02,                    // b
+                PUSH, 0x03,                    // a
+                ADD];                          // pop 2 bytes,
+                                               // add (a + b) and push
+            let code_size = (executable.len() as Word - CODE_OFFSET) as u8;
+            executable[0] = code_size;
+
+            let (output, vm) = run(&[], executable);
+
+            assert_eq!(&[0x05], vm.stack());
+            assert!(vm.data().is_empty());
+            assert!(output.is_empty());
+        }
+
+        {
+            let mut executable = vec![
+                0, 0,
+                PUSH, 255,                     // b
+                PUSH, 1,                       // a
+                ADD];                          // a + b
+            let code_size = (executable.len() as Word - CODE_OFFSET) as u8;
+            executable[0] = code_size;
+
+            let (output, vm) = run(&[], executable);
+
+            assert_eq!(&[0], vm.stack());
             assert!(vm.data().is_empty());
             assert!(output.is_empty());
         }
@@ -165,7 +262,7 @@ mod tests {
                 DEC,                           // a--
                 INT, OUTPUT,
                 JNE, 6, 0];                    // a != b
-            let code_size = executable.len() as u8;
+            let code_size = (executable.len() as Word - CODE_OFFSET) as u8;
             executable[0] = code_size;
 
             let (output, vm) = run(&[], executable);
@@ -193,7 +290,7 @@ mod tests {
                 NOP,                           // optional
                 3, 2, 1, 0];
             let data_size = 4;
-            let code_size = executable.len() as u8 - data_size;
+            let code_size = (executable.len() as Word - CODE_OFFSET - data_size) as u8;
             executable[0] = code_size;
 
             let (output, vm) = run(&[], executable);
@@ -218,7 +315,7 @@ mod tests {
                 // label end
                 // NOP                         // optional
                 ];
-            let code_size = executable.len() as u8;
+            let code_size = (executable.len() as Word - CODE_OFFSET) as u8;
             executable[0] = code_size;
 
             let input = [3, 2, 1, 0];
@@ -235,7 +332,7 @@ mod tests {
                 PUSH, 4,                       // b
                 PUSH, 12,                      // a
                 DIV];                          // a / b
-            let code_size = executable.len() as u8;
+            let code_size = (executable.len() as Word - CODE_OFFSET) as u8;
             executable[0] = code_size;
 
             let (output, vm) = run(&[], executable);
@@ -251,7 +348,7 @@ mod tests {
                 PUSH, 0,                       // b
                 PUSH, 1,                       // a
                 DIV];                          // a / b
-            let code_size = executable.len() as u8;
+            let code_size = (executable.len() as Word - CODE_OFFSET) as u8;
             executable[0] = code_size;
 
             let (output, vm) = run(&[], executable);
@@ -265,7 +362,7 @@ mod tests {
             let mut executable = vec![
                 0, 0,
                 POP];
-            let code_size = executable.len() as u8;
+            let code_size = (executable.len() as Word - CODE_OFFSET) as u8;
             executable[0] = code_size;
 
             let (output, vm) = run(&[], executable);
@@ -279,7 +376,7 @@ mod tests {
             let mut executable = vec![
                 0, 0,
                 LOAD, PTR, 255, 255];          // access violation
-            let code_size = executable.len() as u8;
+            let code_size = (executable.len() as Word - CODE_OFFSET) as u8;
             executable[0] = code_size;
 
             let (output, vm) = run(&[], executable);
@@ -294,7 +391,7 @@ mod tests {
                 0, 0,
                 LOAD, PTR, 2, 0];              // try to load code segment
                                                // as data segment
-            let code_size = executable.len() as u8;
+            let code_size = (executable.len() as Word - CODE_OFFSET) as u8;
             executable[0] = code_size;
 
             let (output, vm) = run(&[], executable);
@@ -310,7 +407,7 @@ mod tests {
                 LOAD, PTR, 6, 0,
                 123];
             let data_size = 1;
-            let code_size = executable.len() as u8 - data_size;
+            let code_size = (executable.len() as Word - CODE_OFFSET - data_size) as u8;
             executable[0] = code_size;
 
             let (output, vm) = run(&[], executable);
@@ -338,7 +435,7 @@ mod tests {
                 MUL,                           // a = a * 2
                 RET];
 
-            let code_size = executable.len() as u8;
+            let code_size = (executable.len() as Word - CODE_OFFSET) as u8;
             executable[0] = code_size;
 
             let input = [3, 2, 1, 0];
@@ -364,7 +461,7 @@ mod tests {
                                                // end:
                 5];                            // x
             let data_size = 1;
-            let code_size = executable.len() as u8 - data_size;
+            let code_size = (executable.len() as Word - CODE_OFFSET - data_size) as u8;
             executable[0] = code_size;
 
             let (output, vm) = run(&[], executable);
@@ -387,7 +484,7 @@ mod tests {
                 JLE, 16, 0,                    // if x <= i: goto end
                 JMP, 6, 0];                    // goto loop
             let data_size = 1;
-            let code_size = executable.len() as u8 - data_size;
+            let code_size = (executable.len() as Word - CODE_OFFSET - data_size) as u8;
             executable[0] = code_size;
 
             let (output, vm) = run(&[], executable);
