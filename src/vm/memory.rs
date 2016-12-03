@@ -1,7 +1,6 @@
-use byteorder::{ByteOrder, LittleEndian, ReadBytesExt, WriteBytesExt};
+use byteorder::ByteOrder;
 use common::*;
 use std::cmp;
-use std::io::{Cursor, Result};
 
 pub struct Memory {
     pub raw: Data,
