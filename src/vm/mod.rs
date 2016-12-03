@@ -131,14 +131,21 @@ mod tests {
     #[cfg_attr(rustfmt, rustfmt_skip)]
     #[test]
     fn simple() {
-        assert!(run(&[], vec![]).0.is_empty());
+        {
+            let (output, vm) = run(&[], vec![]);
+
+            assert!(output.is_empty());
+            assert!(vm.stack().is_empty());
+            assert!(vm.data().is_empty());
+        }
 
         {
             let mut executable = vec![
                 0, 0,
-                PUSH, 3,
-                PUSH, 4,
-                ADD];     // pop 2 bytes, add and push
+                PUSH, 3,                       // b
+                PUSH, 4,                       // a
+                ADD];                          // pop 2 bytes,
+                                               // add (a + b) and push
             let code_size = executable.len() as u8;
             executable[0] = code_size;
 
@@ -151,10 +158,11 @@ mod tests {
         {
             let mut executable = vec![
                 0, 0,
-                PUSH, 10,
-                DEC,
+                PUSH, 0,                       // b
+                PUSH, 10,                      // a
+                DEC,                           // a--
                 INT, OUTPUT,
-                JNE, 0,  4, 0];
+                JNE, 6, 0];                    // a != b
             let code_size = executable.len() as u8;
             executable[0] = code_size;
 
@@ -167,14 +175,19 @@ mod tests {
         {
             let mut executable = vec![
                 0, 0,
-                PUSH, 0,                         // offset
-                LOAD, PTR_WITH_OFFSET, 20, 0,    // data segment
-                INT, OUTPUT,
-                JE, 0,  19, 0,
-                POP,
-                INC,
-                JMP, 4, 0,
-                NOP,
+                PUSH, 0,                       // zero
+                PUSH, 0,                       // offset
+
+                // label loop
+                LOAD, PTR_WITH_OFFSET, 21, 0,  // d = [data segment + offset]
+                INT, OUTPUT,                   // print d
+                JE, 20, 0,                     // if d == zero: goto end
+                POP,                           // pop d
+                INC,                           // offset++
+                JMP, 6, 0,                     // goto loop
+
+                // label end
+                NOP,                           // optional
                 3, 2, 1, 0];
             let data_size = 4;
             let code_size = executable.len() as u8 - data_size;
@@ -190,40 +203,49 @@ mod tests {
         {
             let mut executable = vec![
                 0, 0,
-                INT, INPUT,
-                INT, OUTPUT,
-                JNE, 0,  2, 0];
+                PUSH, 0,                       // b
+
+                // label loop
+                INT, INPUT,                    // a
+                INT, OUTPUT,                   // print a
+                JE, 15, 0,                     // if a == b: goto end
+                POP,                           // remove a
+                JMP, 4, 0                      // goto loop
+
+                // label end
+                // NOP                         // optional
+                ];
             let code_size = executable.len() as u8;
             executable[0] = code_size;
 
             let input = [3, 2, 1, 0];
             let (output, vm) = run(&input, executable);
 
-            assert_eq!(&[0, 1, 2, 3], vm.stack());
+            assert_eq!(&[0, 0], vm.stack());
             assert_eq!(&[3, 2, 1, 0], output.as_slice());
         }
 
         {
             let mut executable = vec![
                 0, 0,
-                PUSH, 4,
-                PUSH, 12,
-                DIV];
+                PUSH, 4,                       // b
+                PUSH, 12,                      // a
+                DIV];                          // a / b
             let code_size = executable.len() as u8;
             executable[0] = code_size;
 
             let (output, vm) = run(&[], executable);
 
-            assert_eq!(b"Unknown Error", output.as_slice());
+            assert!(output.is_empty());
             assert_eq!(&[3], vm.stack());
         }
 
         {
             let mut executable = vec![
                 0, 0,
-                PUSH, 0,
-                PUSH, 1,
-                DIV];
+                PUSH, 0,                       // b
+                PUSH, 1,                       // a
+                DIV];                          // a / b
             let code_size = executable.len() as u8;
             executable[0] = code_size;
 
@@ -249,7 +271,21 @@ mod tests {
         {
             let mut executable = vec![
                 0, 0,
-                LOAD, PTR, 255, 255];
+                LOAD, PTR, 255, 255];          // access violation
+            let code_size = executable.len() as u8;
+            executable[0] = code_size;
+
+            let (output, vm) = run(&[], executable);
+
+            assert_eq!(b"Segfault", output.as_slice());
+            assert!(vm.stack().is_empty());
+        }
+
+        {
+            let mut executable = vec![
+                0, 0,
+                LOAD, PTR, 2, 0];              // try to load code segment
+                                               // as data segment
             let code_size = executable.len() as u8;
             executable[0] = code_size;
 
@@ -264,7 +300,8 @@ mod tests {
                 0, 0,
                 LOAD, PTR, 6, 0,
                 123];
-            let code_size = executable.len() as u8;
+            let data_size = 1;
+            let code_size = executable.len() as u8 - data_size;
             executable[0] = code_size;
 
             let (output, vm) = run(&[], executable);
@@ -275,18 +312,19 @@ mod tests {
         {
             let mut executable = vec![
                 0, 0,
-                                             // do
-                INT, INPUT,                  //   d = read
-                CALL, PTR, 20, 0,            //   d = f(d)
-                INT, OUTPUT,                 //   print a
-                JE, 0,  18, 0,               // while d != 0
-                POP,
-                JMP, 2, 0,                   // goto do
-                INT, TERMINATE,              // exit
+                PUSH, 0,                       // zero
+                                               // loop:
+                INT, INPUT,                    //   x = read
+                CALL, PTR, 20, 0,              //   x = f(x)
+                INT, OUTPUT,                   //   print x
+                JE, 18, 0,                     // if x == zero: goto exit
+                POP,                           // pop x
+                JMP, 2, 0,                     // goto loop
+                INT, TERMINATE,                // exit:
 
-                // label f
+                                               // f:
                 PUSH, 2,
-                MUL,                         // a = a * 2
+                MUL,                           // a = a * 2
                 RET];
 
             let code_size = executable.len() as u8;
@@ -296,6 +334,31 @@ mod tests {
             let (output, vm) = run(&input, executable);
 
             assert_eq!(&[6, 4, 2, 0], output.as_slice());
+            assert_eq!(&[0, 0], vm.stack());
+        }
+
+        {
+            let mut executable = vec![
+                0, 0,
+                PUSH, 0,                       // i
+                                               // loop:
+                LOAD, 19, 0,                   // x
+                JLE, 19, 0,                    // if x <= i goto: end
+                DEC,
+                STORE, 19, 0,                  // x
+                POP,
+                INC,
+                JMP, 4, 0,                     // goto loop
+                                               // end:
+                5];                            // x
+            let data_size = 1;
+            let code_size = executable.len() as u8 - data_size;
+            executable[0] = code_size;
+
+            let (output, vm) = run(&[], executable);
+
+            assert_eq!(&[3], vm.stack());
+            assert_eq!(&[2], vm.data());
         }
     }
 
