@@ -24,7 +24,7 @@ Licensed under the terms of MIT (read LICENSE.txt for details).
 
 ### Memory Layout
 ```
-[ executable ] [ registers ] [ <-- stack ] [ callbacks ] [ <-- event queue ]
+[ executable ] [ registers ] [ <-- stack ] [ event handlers ] [ <-- event queue ]
 ```
 
 ### Event Queue

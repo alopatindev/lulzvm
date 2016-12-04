@@ -10,6 +10,7 @@ mod modes;
 mod opcodes;
 mod registers;
 
+use self::events::*;
 use self::memory::*;
 use self::modes::*;
 use self::opcodes::*;
@@ -40,8 +41,8 @@ impl<R: Read, W: Write> VM<R, W> {
     pub fn run(&mut self) {
         self.set_register(PC, CODE_OFFSET as Word);
 
-        let stack_offset = self.memory.stack_offset;
-        self.set_register(SP, stack_offset);
+        let stack_end = self.memory.stack_end;
+        self.set_register(SP, stack_end);
 
         let mut args = vec![];
         while self.memory.is_in_code(self.get_register(PC)) {
@@ -67,23 +68,24 @@ impl<R: Read, W: Write> VM<R, W> {
     }
 
     fn fetch(&mut self) -> &mut Self {
-        let opcode = self.next_code_byte() as Word;
         debug!("fetch {:?}", self);
+
+        let opcode = self.next_code_byte() as Word;
         self.set_register(IR, opcode);
         self
     }
 
     fn decode(&mut self, args: &mut Data) -> &mut Self {
-        let opcode = self.get_register(IR) as u8;
         debug!("decode {:?}", self);
 
+        let opcode = self.get_register(IR) as u8;
         match opcode {
-            PUSH => args.push(self.next_code_byte()),
+            PUSH | INT => args.push(self.next_code_byte()),
             ADD | SUB | MUL | DIV | MOD => {
                 args.push(self.stack_pop());
                 args.push(self.stack_pop());
             }
-            DEC => args.push(self.stack_pop()),
+            INC | DEC => args.push(self.stack_pop()),
             _ => unimplemented!(),
         }
 
@@ -91,9 +93,9 @@ impl<R: Read, W: Write> VM<R, W> {
     }
 
     fn execute(&mut self, args: DataSlice) -> &mut Self {
-        let opcode = self.get_register(IR) as u8;
         debug!("execute {:?}", self);
 
+        let opcode = self.get_register(IR) as u8;
         match opcode {
             PUSH => {
                 self.stack_push(args[0]);
@@ -120,6 +122,13 @@ impl<R: Read, W: Write> VM<R, W> {
                 let value = Wrapping(args[0]) % Wrapping(args[1]);
                 self.stack_push(value.0);
             }
+            INT => {
+                let event = args[0];
+                if events::is_critical(event) {
+                    self.clear_event_queue();
+                }
+                self.enqueue_event(event);
+            }
             _ => unimplemented!(),
         }
 
@@ -130,31 +139,49 @@ impl<R: Read, W: Write> VM<R, W> {
         unimplemented!()
     }
 
+    fn process_event(&mut self, id: u8) {
+        match id {
+            TERMINATE => {
+                let code_end = self.memory.data_begin;
+                self.set_register(PC, code_end);
+            }
+            _ => unimplemented!(),
+        }
+    }
+
+    fn enqueue_event(&mut self, id: u8) {
+        unimplemented!()
+    }
+
+    fn clear_event_queue(&mut self) {
+        unimplemented!()
+    }
+
     fn next_code_byte(&mut self) -> u8 {
-        let code_offset = self.get_register(PC);
-        let value = self.memory.get(code_offset);
+        let code_begin = self.get_register(PC);
+        let value = self.memory.get(code_begin);
         self.increment_register(PC);
         value
     }
 
     // fn read_memory(&mut self) -> Word {
-    //     let code_offset = self.get_register(PC);
-    //     let mode = self.memory.get(code_offset);
+    //     let code_begin = self.get_register(PC);
+    //     let mode = self.memory.get(code_begin);
     //     self.increment_register(PC);
     //
     //     match mode {
     //         REG => {
-    //             let code_offset = self.get_register(PC);
+    //             let code_begin = self.get_register(PC);
     //             self.increment_register(PC);
-    //             let register_id = self.memory.get(code_offset);
+    //             let register_id = self.memory.get(code_begin);
     //             self.get_register(register_id)
     //         }
     //         PTR => unimplemented!(),
     //         PTR_WITH_OFFSET => unimplemented!(),
     //         VALUE => {
-    //             let code_offset = self.get_register(PC) as usize;
+    //             let code_begin = self.get_register(PC) as usize;
     //             self.increment_register(PC);
-    //             let value = self.memory.read_word(code_offset);
+    //             let value = self.memory.read_word(code_begin);
     //             for _ in 0..WORD_SIZE {
     //                 self.increment_register(PC);
     //             }
@@ -169,6 +196,7 @@ impl<R: Read, W: Write> VM<R, W> {
     }
 
     fn set_register(&mut self, id: u8, value: Word) {
+        debug!("set r{:x} := {}", id, to_hex!(value));
         self.registers[id as usize] = value;
     }
 
@@ -181,6 +209,7 @@ impl<R: Read, W: Write> VM<R, W> {
     }
 
     fn stack_pop(&mut self) -> u8 {
+        debug!("stack_pop from [{}]", data_to_hex(self.stack()));
         let sp = self.get_register(SP);
         let value = self.memory.get(sp);
         self.increment_register(SP);
@@ -188,6 +217,7 @@ impl<R: Read, W: Write> VM<R, W> {
     }
 
     fn stack_push(&mut self, value: u8) {
+        debug!("stack_push to [{}]", data_to_hex(self.stack()));
         self.decrement_register(SP);
         let sp = self.get_register(SP);
         self.memory.put(sp, value);
@@ -218,7 +248,18 @@ mod tests {
     #[test]
     fn simple() {
         {
-            let executable = vec![0, 0];
+            let executable = vec![0x00, 0x00];
+            let (output, vm) = run(&[], executable, 0);
+
+            assert!(vm.stack().is_empty());
+            assert!(vm.data().is_empty());
+            assert!(output.is_empty());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+                NOP];
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.stack().is_empty());
@@ -762,6 +803,94 @@ mod tests {
             assert_eq!(&[0xff], vm.stack());
             assert!(vm.data().is_empty());
             assert!(output.is_empty());
+        }
+    }
+
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    #[test]
+    fn logical() {
+        // TODO
+        assert!(false)
+    }
+
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    #[test]
+    fn bitwise() {
+        // TODO
+        assert!(false)
+    }
+
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    #[test]
+    fn jumps() {
+        // TODO
+        assert!(false)
+    }
+
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    #[test]
+    fn functions() {
+        // TODO
+        assert!(false)
+    }
+
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    #[test]
+    fn events() {
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                INT, TERMINATE];
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert!(vm.stack().is_empty());
+            assert!(vm.data().is_empty());
+            assert!(output.is_empty());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                INT, INPUT];
+
+            let input = [0x11];
+            let (output, vm) = run(&input, executable, 0);
+
+            assert_eq!(&[0x11], vm.stack());
+            assert!(vm.data().is_empty());
+            assert!(output.is_empty());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                PUSH, 0x11,
+                INT, OUTPUT];
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert_eq!(&[0x11], vm.stack());
+            assert!(vm.data().is_empty());
+            assert_eq!(&[0x11], output.as_slice());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                PUSH, 0x00,
+                PUSH, 0x01,
+                DIV];                          // div by zero
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert!(vm.stack().is_empty());
+            assert!(vm.data().is_empty());
+            assert_eq!(b"Unknown Error", output.as_slice());
         }
     }
 

@@ -6,3 +6,7 @@ pub const OUTPUT: u8 = 0x03;
 pub const TERMINATE: u8 = 0xf0;
 pub const SEGFAULT: u8 = 0xf1;
 pub const UNKNOWN_ERROR: u8 = 0xf2;
+
+pub fn is_critical(id: u8) -> bool {
+    id >= TERMINATE
+}

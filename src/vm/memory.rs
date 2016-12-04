@@ -4,9 +4,23 @@ use std::cmp;
 
 pub struct Memory {
     pub raw: Data,
+
     pub executable_size: Word,
-    pub code_size: Word,
-    pub stack_offset: Word,
+
+    pub code_begin: Word,
+    pub code_end: Word,
+
+    pub data_begin: Word,
+    pub data_end: Word,
+
+    pub stack_begin: Word,
+    pub stack_end: Word,
+
+    pub event_handlers_begin: Word,
+    pub event_handlers_end: Word,
+
+    pub event_queue_begin: Word,
+    pub event_queue_end: Word,
 }
 
 impl Memory {
@@ -17,40 +31,71 @@ impl Memory {
         executable.resize(new_size as usize, 0);
 
         let code_size = Self::read_word_from(&executable, CODE_SIZE_OFFSET);
-        let stack_offset = executable_size + REGISTERS_SIZE + STACK_SIZE;
+        let code_begin = CODE_OFFSET;
+        let code_end = CODE_OFFSET + code_size;
+
+        let stack_begin = executable_size + REGISTERS_SIZE;
+        let stack_end = stack_begin + STACK_SIZE;
+
+        let data_begin = cmp::min(CODE_OFFSET + code_size, executable_size);
+        let data_end = executable_size;
+
+        let event_handlers_begin = stack_end;
+        let event_handlers_end = stack_end + EVENT_HANDLERS;
+
+        let event_queue_begin = event_handlers_end;
+        let event_queue_end = event_handlers_end + EVENT_QUEUE_SIZE;
 
         Memory {
             raw: executable,
+
             executable_size: executable_size,
-            code_size: code_size,
-            stack_offset: stack_offset,
+
+            code_begin: code_begin,
+            code_end: code_end,
+
+            data_begin: data_begin,
+            data_end: data_end,
+
+            stack_begin: stack_begin,
+            stack_end: stack_end,
+
+            event_handlers_begin: event_handlers_begin,
+            event_handlers_end: event_handlers_end,
+
+            event_queue_begin: event_queue_begin,
+            event_queue_end: event_queue_end,
         }
     }
 
     pub fn stack(&self, sp: Word) -> DataSlice {
+        assert!(sp >= self.stack_begin && sp <= self.stack_end);
         let sp = sp as usize;
-        let stack_offset = self.stack_offset as usize;
-        &self.raw[sp..stack_offset]
+        let stack_end = self.stack_end as usize;
+        &self.raw[sp..stack_end]
     }
 
     pub fn data(&self) -> DataSlice {
-        let begin = CODE_OFFSET + self.code_size;
-        let begin = cmp::min(begin, self.executable_size);
-        let data_size = self.executable_size - begin;
-        let begin = begin as usize;
-        let data_size = data_size as usize;
-        let end = begin + data_size;
+        let begin = self.data_begin as usize;
+        let end = self.data_end as usize;
         &self.raw[begin..end]
     }
 
     pub fn is_in_code(&self, index: Word) -> bool {
-        index >= CODE_OFFSET && index < CODE_OFFSET + self.code_size
+        index >= self.code_begin && index < self.code_end
     }
 
     pub fn code(&self) -> DataSlice {
-        let begin = CODE_OFFSET as usize;
-        let end = (CODE_OFFSET + self.code_size) as usize;
+        let begin = self.code_begin as usize;
+        let end = self.code_end as usize;
         &self.raw[begin..end]
+    }
+
+    pub fn event_queue(&self, ep: Word) -> DataSlice {
+        assert!(ep >= self.event_queue_begin && ep <= self.event_queue_end);
+        let ep = ep as usize;
+        let end = self.event_queue_end as usize;
+        &self.raw[ep..end]
     }
 
     pub fn get(&self, index: Word) -> u8 {
