@@ -211,6 +211,21 @@ mod tests {
             let executable = vec![
                 0x00, 0x00,
 
+                PUSH, 0x03,
+                PUSH, 0x04,
+                SWP];
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert_eq!(&[0x03, 0x04], vm.stack());
+            assert!(vm.data().is_empty());
+            assert!(output.is_empty());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
                 PUSH, 0x00,                    // b
                 PUSH, 0x0a,                    // a
                 DEC,                           // a--
@@ -368,11 +383,108 @@ mod tests {
             let executable = vec![
                 0x00, 0x00,
 
+                PUSH, 0x55,
+                PUSH, 0x77];
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert_eq!(&[0x77, 0x55], vm.stack());
+            assert!(vm.data().is_empty());
+            assert!(output.is_empty());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                PUSH, 0x55,
                 POP];
 
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.stack().is_empty());
+            assert!(vm.data().is_empty());
+            assert!(output.is_empty());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                PUSH, 0x55,
+                PUSH, 0x77,
+                POP,
+                POP];
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert!(vm.stack().is_empty());
+            assert!(vm.data().is_empty());
+            assert!(output.is_empty());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                PUSH, 0x55,
+                PUSH, 0x77,
+                POP];
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert_eq!(&[0x55], vm.stack());
+            assert!(vm.data().is_empty());
+            assert!(output.is_empty());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                POP];
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert!(vm.stack().is_empty());
+            assert!(vm.data().is_empty());
+            assert_eq!(b"Segfault", output.as_slice());
+        }
+
+        {
+            let executable_size = WORD_SIZE + STACK_SIZE * 2;
+            let executable_size = executable_size as usize;
+            let mut executable = Vec::with_capacity(executable_size);
+            executable.resize(executable_size, 0x00);
+
+            let mut i = 3;
+            while i < executable_size {
+                executable[i] = PUSH;
+                i += 2;
+            }
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert_eq!(STACK_SIZE, vm.stack().len() as Word);
+            assert!(vm.data().is_empty());
+            assert!(output.is_empty());
+        }
+
+        {
+            let executable_size = WORD_SIZE + (STACK_SIZE + 1) * 2;
+            let executable_size = executable_size as usize;
+            let mut executable = Vec::with_capacity(executable_size);
+            executable.resize(executable_size, 0x00);
+
+            let mut i = 3;
+            while i < executable_size {
+                executable[i] = PUSH;
+                i += 2;
+            }
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert_eq!(STACK_SIZE, vm.stack().len() as Word);
             assert!(vm.data().is_empty());
             assert_eq!(b"Segfault", output.as_slice());
         }
@@ -575,6 +687,62 @@ mod tests {
             assert!(vm.stack().is_empty());
             assert!(vm.data().is_empty());
             assert_eq!(b"Unknown Error", output.as_slice());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                PUSH, 0x05,
+                INC];
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert_eq!(&[0x06], vm.stack());
+            assert!(vm.data().is_empty());
+            assert!(output.is_empty());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                PUSH, 0xff,
+                INC];
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert_eq!(&[0x00], vm.stack());
+            assert!(vm.data().is_empty());
+            assert!(output.is_empty());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                PUSH, 0x05,
+                DEC];
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert_eq!(&[0x04], vm.stack());
+            assert!(vm.data().is_empty());
+            assert!(output.is_empty());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                PUSH, 0x00,
+                DEC];
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert_eq!(&[0xff], vm.stack());
+            assert!(vm.data().is_empty());
+            assert!(output.is_empty());
         }
     }
 
