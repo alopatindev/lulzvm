@@ -58,6 +58,7 @@ impl Memory {
     }
 
     pub fn put(&mut self, index: Word, value: u8) {
+        debug!("put address={} value={}", to_hex!(index), to_hex!(value));
         self.raw[index as usize] = value;
     }
 

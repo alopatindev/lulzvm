@@ -2,7 +2,7 @@ use byteorder::LittleEndian;
 
 macro_rules! to_hex {
     ($data:expr) => {
-        format!("{:02x}", $data)
+        format!("0x{:02x}", $data)
     }
 }
 

@@ -1,6 +1,7 @@
 use common::*;
 use std::fmt;
 use std::io::{Read, Write};
+use std::num::Wrapping;
 
 mod events;
 mod memory;
@@ -94,8 +95,8 @@ impl<R: Read, W: Write> VM<R, W> {
                 self.stack_push(args[0]);
             }
             ADD => {
-                let value = self.stack_pop() + self.stack_pop();
-                self.stack_push(value);
+                let value = Wrapping(args[0]) + Wrapping(args[1]);
+                self.stack_push(value.0);
             }
             _ => unimplemented!(),
         }
@@ -236,7 +237,7 @@ mod tests {
         {
             let executable = vec![
                 0, 0,
-                PUSH, 255,                     // b
+                PUSH, 0xff,                    // b
                 PUSH, 1,                       // a
                 ADD];                          // a + b
 
@@ -251,7 +252,7 @@ mod tests {
             let executable = vec![
                 0, 0,
                 PUSH, 0,                       // b
-                PUSH, 10,                      // a
+                PUSH, 0x0a,                    // a
                 DEC,                           // a--
                 INT, OUTPUT,
                 JNE, 6, 0];                    // a != b
@@ -421,10 +422,10 @@ mod tests {
                 0, 0,
                 PUSH, 0,                       // i
                                                // loop:
-                LOAD, 19, 0,                   // x
-                JLE, 19, 0,                    // if x <= i goto: end
+                LOAD, PTR, 21, 0,              // x
+                JLE, 21, 0,                    // if x <= i goto: end
                 DEC,
-                STORE, 19, 0,                  // x
+                STORE, PTR, 21, 0,             // x
                 POP,
                 INC,
                 JMP, 4, 0,                     // goto loop
