@@ -79,10 +79,11 @@ impl<R: Read, W: Write> VM<R, W> {
 
         match opcode {
             PUSH => args.push(self.next_code_byte()),
-            ADD => {
+            ADD | SUB | MUL | DIV | MOD => {
                 args.push(self.stack_pop());
                 args.push(self.stack_pop());
             }
+            DEC => args.push(self.stack_pop()),
             _ => unimplemented!(),
         }
 
@@ -99,6 +100,24 @@ impl<R: Read, W: Write> VM<R, W> {
             }
             ADD => {
                 let value = Wrapping(args[0]) + Wrapping(args[1]);
+                self.stack_push(value.0);
+            }
+            SUB => {
+                let value = Wrapping(args[0]) - Wrapping(args[1]);
+                self.stack_push(value.0);
+            }
+            MUL => {
+                let value = Wrapping(args[0]) * Wrapping(args[1]);
+                self.stack_push(value.0);
+            }
+            DIV => {
+                // FIXME: check div by zero
+                let value = Wrapping(args[0]) / Wrapping(args[1]);
+                self.stack_push(value.0);
+            }
+            MOD => {
+                // FIXME: check mod by zero
+                let value = Wrapping(args[0]) % Wrapping(args[1]);
                 self.stack_push(value.0);
             }
             _ => unimplemented!(),
@@ -624,7 +643,7 @@ mod tests {
 
             let (output, vm) = run(&[], executable, 0);
 
-            assert_eq!(&[0x33], vm.stack());
+            assert_eq!(&[0xf6], vm.stack());
             assert!(vm.data().is_empty());
             assert!(output.is_empty());
         }
