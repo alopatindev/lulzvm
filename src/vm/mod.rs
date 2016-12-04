@@ -1,4 +1,5 @@
 use common::*;
+use env_logger;
 use std::fmt;
 use std::io::{Read, Write};
 use std::num::Wrapping;
@@ -24,6 +25,8 @@ pub struct VM<R: Read, W: Write> {
 
 impl<R: Read, W: Write> VM<R, W> {
     pub fn new(input: R, output: W, executable: Data) -> Self {
+        let _ = env_logger::init();
+
         let memory = Memory::from_executable(executable);
 
         VM {
@@ -188,7 +191,6 @@ impl<R: Read, W: Write> fmt::Debug for VM<R, W> {
 #[cfg(test)]
 mod tests {
     use byteorder::ByteOrder;
-    use env_logger;
     use self::events::*;
     use std::io::{BufReader, BufWriter};
     use super::*;
@@ -196,8 +198,6 @@ mod tests {
     #[cfg_attr(rustfmt, rustfmt_skip)]
     #[test]
     fn simple() {
-        env_logger::init().unwrap();
-
         {
             let executable = vec![0, 0];
             let (output, vm) = run(&[], executable, 0);
@@ -209,7 +209,152 @@ mod tests {
 
         {
             let executable = vec![
-                0, 0,
+                0x00, 0x00,
+
+                PUSH, 0x00,                    // b
+                PUSH, 0x0a,                    // a
+                DEC,                           // a--
+                INT, OUTPUT,
+                JNE, 0x06, 0];                 // a != b
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert_eq!([0], vm.stack());
+            assert!(vm.data().is_empty());
+            assert_eq!(&[9, 8, 7, 6, 5, 4, 3, 2, 1, 0], output.as_slice());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                PUSH, 0x00,                    // zero
+                PUSH, 0x00,                    // offset
+
+                // label loop
+                                               // d = [data segment + offset]
+                LOAD, PTR_WITH_OFFSET, 0x15, 0x00,
+                INT, OUTPUT,                   // print d
+                JE, 0x14, 0x00,                // if d == zero: goto end
+                POP,                           // pop d
+                INC,                           // offset++
+                JMP, 0x06, 0x00,               // goto loop
+
+                // label end
+                NOP,                           // optional
+                0x03, 0x02, 0x01, 0x00];
+
+            let (output, vm) = run(&[], executable, 4);
+
+            assert_eq!(&[0x00], vm.stack());
+            assert_eq!(&[0x03, 0x02, 0x01, 0x00], vm.data());
+            assert_eq!(&[0x03, 0x02, 0x01], output.as_slice());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                PUSH, 0x00,                    // b
+
+                // label loop
+                INT, INPUT,                    // a
+                INT, OUTPUT,                   // print a
+                JE, 0x0f, 0x00,                // if a == b: goto end
+                POP,                           // remove a
+                JMP, 0x04, 0x00                // goto loop
+
+                // label end
+                // NOP                         // optional
+                ];
+
+            let input = [0x03, 0x02, 0x01, 0x00];
+            let (output, vm) = run(&input, executable, 0);
+
+            assert_eq!(&[0x00, 0x00], vm.stack());
+            assert!(vm.data().is_empty());
+            assert_eq!(&[0x03, 0x02, 0x01, 0x00], output.as_slice());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                PUSH, 0x00,                    // const zero
+                                               // loop:
+                INT, INPUT,                    //   x = read
+                CALL, PTR, 0x14, 0x00,         //   x = f(x)
+                INT, OUTPUT,                   //   print x
+                JE, 0x12, 0x00,                // if x == zero: goto exit
+                POP,                           // pop x
+                JMP, 0x02, 0x00,               // goto loop
+                INT, TERMINATE,                // exit:
+
+                                               // f:
+                PUSH, 0x02,
+                MUL,                           // a = a * 2
+                RET];
+
+            let input = [0x03, 0x02, 0x01, 0x00];
+            let (output, vm) = run(&input, executable, 0);
+
+            assert_eq!(&[0x00, 0x00], vm.stack());
+            assert!(vm.data().is_empty());
+            assert_eq!(&[0x06, 0x04, 0x02, 0x00], output.as_slice());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                PUSH, 0x00,                    // i
+                                               // loop:
+                LOAD, PTR, 0x15, 0x00,         // x
+                JLE, 0x15, 0x00,               // if x <= i goto: end
+                DEC,
+                STORE, PTR, 0x15, 0x00,        // x
+                POP,
+                INC,
+                JMP, 0x04, 0x00,               // goto loop
+                                               // end:
+                0x05];                         // x
+
+            let (output, vm) = run(&[], executable, 1);
+
+            assert_eq!(&[0x03], vm.stack());
+            assert_eq!(&[0x02], vm.data());
+            assert!(output.is_empty());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                PUSH, 0x00,                    // i
+                PUSH, 0x05,                    // x
+                                               // loop:
+                DEC,
+                SWP,
+                INC,
+                SWP,
+                JLE, 0x10, 0,                  // if x <= i: goto end
+                JMP, 0x06, 0];                 // goto loop
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert_eq!(&[0x02, 0x03], vm.stack());
+            assert!(vm.data().is_empty());
+            assert!(output.is_empty());
+        }
+    }
+
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    #[test]
+    fn stack() {
+        {
+            let executable = vec![
+                0x00, 0x00,
+
                 PUSH, 0x55];
 
             let (output, vm) = run(&[], executable, 0);
@@ -221,7 +366,70 @@ mod tests {
 
         {
             let executable = vec![
-                0, 0,
+                0x00, 0x00,
+
+                POP];
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert!(vm.stack().is_empty());
+            assert!(vm.data().is_empty());
+            assert_eq!(b"Segfault", output.as_slice());
+        }
+    }
+
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    #[test]
+    fn load_store() {
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                LOAD, PTR, 0x06, 0x00,
+                0x7b];
+
+            let (output, vm) = run(&[], executable, 1);
+
+            assert_eq!(&[0x7b], vm.stack());
+            assert!(vm.data().is_empty());
+            assert!(output.is_empty());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                LOAD, PTR, 0xff, 0xff];        // access violation
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert!(vm.stack().is_empty());
+            assert!(vm.data().is_empty());
+            assert_eq!(b"Segfault", output.as_slice());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                LOAD, PTR, 0x02, 0x00];        // try to load code segment
+                                               // as data segment
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert!(vm.stack().is_empty());
+            assert!(vm.data().is_empty());
+            assert_eq!(b"Segfault", output.as_slice());
+        }
+    }
+
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    #[test]
+    fn arithmetic() {
+        {
+            let executable = vec![
+                0x00, 0x00,
+
                 PUSH, 0x02,                    // b
                 PUSH, 0x03,                    // a
                 ADD];                          // pop 2 bytes,
@@ -236,10 +444,11 @@ mod tests {
 
         {
             let executable = vec![
-                0, 0,
-                PUSH, 0xff,                    // b
-                PUSH, 1,                       // a
-                ADD];                          // a + b
+                0x00, 0x00,
+
+                PUSH, 0xff,
+                PUSH, 0x01,
+                ADD];                          // overflow
 
             let (output, vm) = run(&[], executable, 0);
 
@@ -250,89 +459,86 @@ mod tests {
 
         {
             let executable = vec![
-                0, 0,
-                PUSH, 0,                       // b
-                PUSH, 0x0a,                    // a
-                DEC,                           // a--
-                INT, OUTPUT,
-                JNE, 6, 0];                    // a != b
+                0x00, 0x00,
+
+                PUSH, 0x02,
+                PUSH, 0x03,
+                SUB];
 
             let (output, vm) = run(&[], executable, 0);
 
-            assert_eq!([0], vm.stack());
-            assert!(vm.data().is_empty());
-            assert_eq!(&[9, 8, 7, 6, 5, 4, 3, 2, 1, 0], output.as_slice());
-        }
-
-        {
-            let executable = vec![
-                0, 0,
-                PUSH, 0,                       // zero
-                PUSH, 0,                       // offset
-
-                // label loop
-                LOAD, PTR_WITH_OFFSET, 21, 0,  // d = [data segment + offset]
-                INT, OUTPUT,                   // print d
-                JE, 20, 0,                     // if d == zero: goto end
-                POP,                           // pop d
-                INC,                           // offset++
-                JMP, 6, 0,                     // goto loop
-
-                // label end
-                NOP,                           // optional
-                3, 2, 1, 0];
-
-            let (output, vm) = run(&[], executable, 4);
-
-            assert_eq!(&[0], vm.stack());
-            assert_eq!(&[3, 2, 1, 0], vm.data());
-            assert_eq!(&[3, 2, 1], output.as_slice());
-        }
-
-        {
-            let executable = vec![
-                0, 0,
-                PUSH, 0,                       // b
-
-                // label loop
-                INT, INPUT,                    // a
-                INT, OUTPUT,                   // print a
-                JE, 15, 0,                     // if a == b: goto end
-                POP,                           // remove a
-                JMP, 4, 0                      // goto loop
-
-                // label end
-                // NOP                         // optional
-                ];
-
-            let input = [3, 2, 1, 0];
-            let (output, vm) = run(&input, executable, 0);
-
-            assert_eq!(&[0, 0], vm.stack());
-            assert!(vm.data().is_empty());
-            assert_eq!(&[3, 2, 1, 0], output.as_slice());
-        }
-
-        {
-            let executable = vec![
-                0, 0,
-                PUSH, 4,                       // b
-                PUSH, 12,                      // a
-                DIV];                          // a / b
-
-            let (output, vm) = run(&[], executable, 0);
-
-            assert_eq!(&[3], vm.stack());
+            assert_eq!(&[0x01], vm.stack());
             assert!(vm.data().is_empty());
             assert!(output.is_empty());
         }
 
         {
             let executable = vec![
-                0, 0,
-                PUSH, 0,                       // b
-                PUSH, 1,                       // a
-                DIV];                          // a / b
+                0x00, 0x00,
+
+                PUSH, 0x03,
+                PUSH, 0x02,
+                SUB];                          // overflow
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert_eq!(&[0xff], vm.stack());
+            assert!(vm.data().is_empty());
+            assert!(output.is_empty());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                PUSH, 0x03,
+                PUSH, 0x02,
+                MUL];
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert_eq!(&[0x06], vm.stack());
+            assert!(vm.data().is_empty());
+            assert!(output.is_empty());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                PUSH, 0x99,
+                PUSH, 0x66,
+                MUL];                          // overflow
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert_eq!(&[0x33], vm.stack());
+            assert!(vm.data().is_empty());
+            assert!(output.is_empty());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                PUSH, 0x04,
+                PUSH, 0x0c,
+                DIV];
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert_eq!(&[0x03], vm.stack());
+            assert!(vm.data().is_empty());
+            assert!(output.is_empty());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                PUSH, 0x00,
+                PUSH, 0x01,
+                DIV];                          // div by zero
 
             let (output, vm) = run(&[], executable, 0);
 
@@ -343,120 +549,32 @@ mod tests {
 
         {
             let executable = vec![
-                0, 0,
-                POP];
+                0x00, 0x00,
+
+                PUSH, 0x04,
+                PUSH, 0x37,
+                MOD];
 
             let (output, vm) = run(&[], executable, 0);
 
-            assert!(vm.stack().is_empty());
-            assert!(vm.data().is_empty());
-            assert_eq!(b"Segfault", output.as_slice());
-        }
-
-        {
-            let executable = vec![
-                0, 0,
-                LOAD, PTR, 255, 255];          // access violation
-
-            let (output, vm) = run(&[], executable, 0);
-
-            assert!(vm.stack().is_empty());
-            assert!(vm.data().is_empty());
-            assert_eq!(b"Segfault", output.as_slice());
-        }
-
-        {
-            let executable = vec![
-                0, 0,
-                LOAD, PTR, 2, 0];              // try to load code segment
-                                               // as data segment
-
-            let (output, vm) = run(&[], executable, 0);
-
-            assert!(vm.stack().is_empty());
-            assert!(vm.data().is_empty());
-            assert_eq!(b"Segfault", output.as_slice());
-        }
-
-        {
-            let executable = vec![
-                0, 0,
-                LOAD, PTR, 6, 0,
-                123];
-
-            let (output, vm) = run(&[], executable, 1);
-
-            assert_eq!(&[123], vm.stack());
+            assert_eq!(&[0x03], vm.stack());
             assert!(vm.data().is_empty());
             assert!(output.is_empty());
         }
 
         {
             let executable = vec![
-                0, 0,
-                PUSH, 0,                       // zero
-                                               // loop:
-                INT, INPUT,                    //   x = read
-                CALL, PTR, 20, 0,              //   x = f(x)
-                INT, OUTPUT,                   //   print x
-                JE, 18, 0,                     // if x == zero: goto exit
-                POP,                           // pop x
-                JMP, 2, 0,                     // goto loop
-                INT, TERMINATE,                // exit:
+                0x00, 0x00,
 
-                                               // f:
-                PUSH, 2,
-                MUL,                           // a = a * 2
-                RET];
-
-            let input = [3, 2, 1, 0];
-            let (output, vm) = run(&input, executable, 0);
-
-            assert_eq!(&[0, 0], vm.stack());
-            assert!(vm.data().is_empty());
-            assert_eq!(&[6, 4, 2, 0], output.as_slice());
-        }
-
-        {
-            let executable = vec![
-                0, 0,
-                PUSH, 0,                       // i
-                                               // loop:
-                LOAD, PTR, 21, 0,              // x
-                JLE, 21, 0,                    // if x <= i goto: end
-                DEC,
-                STORE, PTR, 21, 0,             // x
-                POP,
-                INC,
-                JMP, 4, 0,                     // goto loop
-                                               // end:
-                5];                            // x
-
-            let (output, vm) = run(&[], executable, 1);
-
-            assert_eq!(&[3], vm.stack());
-            assert_eq!(&[2], vm.data());
-            assert!(output.is_empty());
-        }
-
-        {
-            let executable = vec![
-                0, 0,
-                PUSH, 0,                       // i
-                PUSH, 5,                       // x
-                                               // loop:
-                DEC,
-                SWP,
-                INC,
-                SWP,
-                JLE, 16, 0,                    // if x <= i: goto end
-                JMP, 6, 0];                    // goto loop
+                PUSH, 0x00,
+                PUSH, 0x37,
+                MOD];                          // mod by zero
 
             let (output, vm) = run(&[], executable, 0);
 
-            assert_eq!(&[2, 3], vm.stack());
+            assert!(vm.stack().is_empty());
             assert!(vm.data().is_empty());
-            assert!(output.is_empty());
+            assert_eq!(b"Unknown Error", output.as_slice());
         }
     }
 
