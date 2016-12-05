@@ -1,7 +1,7 @@
 use common::*;
 use env_logger;
 use std::fmt;
-use std::io::{Read, Write};
+use std::io::{Read, Write, Error, ErrorKind, Result};
 use std::num::Wrapping;
 
 mod events;
@@ -228,12 +228,14 @@ impl<R: Read, W: Write> VM<R, W> {
             }
             LOAD => {
                 match self.load_data(args) {
-                    Some(byte) => self.stack_push(byte),
+                    Some(value) => self.stack_push(value),
                     None => self.process_event(SEGFAULT, 0x00),
                 }
             }
             STORE => {
-                unimplemented!();
+                if self.store_data(args).is_err() {
+                    self.process_event(SEGFAULT, 0x0);
+                }
             }
             EMIT => {
                 let event = args[0];
@@ -255,22 +257,48 @@ impl<R: Read, W: Write> VM<R, W> {
             .map(|ptr| self.memory.get(ptr))
     }
 
+    fn store_data(&mut self, args: DataSlice) -> Result<()> {
+        let e = Error::new(ErrorKind::InvalidInput, "");
+
+        match self.extract_ptr(args) {
+            Some((ptr, with_offset)) => {
+                let value = if with_offset {
+                    if self.stack().len() < 2 {
+                        return Err(e);
+                    } else {
+                        self.stack()[1]
+                    }
+                } else {
+                    self.stack()[0]
+                };
+
+                self.memory.put(ptr, value);
+                Ok(())
+            }
+            None => Err(e),
+        }
+    }
+
     fn extract_data_ptr(&self, args: DataSlice) -> Option<Word> {
         self.extract_ptr(args)
-            .and_then(|ptr| if self.memory.is_in_data(ptr) {
+            .and_then(|(ptr, _)| if self.memory.is_in_data(ptr) {
                 Some(ptr)
             } else {
                 None
             })
     }
 
-    fn extract_ptr(&self, args: DataSlice) -> Option<Word> {
+    fn extract_ptr(&self, args: DataSlice) -> Option<(Word, bool)> {
         let mode = args[0];
         let ptr = Memory::read_word_from(&args, 1);
+
+        let mut with_offset = false;
 
         let updated_ptr = match mode {
             PTR => ptr,
             PTR_WITH_OFFSET => {
+                with_offset = true;
+
                 if self.stack().is_empty() {
                     return None;
                 } else {
@@ -281,7 +309,7 @@ impl<R: Read, W: Write> VM<R, W> {
             _ => unreachable!(),
         };
 
-        Some(updated_ptr)
+        Some((updated_ptr, with_offset))
     }
 
     fn process_event(&mut self, event: u8, argument: u8) {
