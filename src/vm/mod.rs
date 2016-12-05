@@ -30,8 +30,6 @@ pub struct VM<R: Read, W: Write> {
 
 impl<R: Read, W: Write> VM<R, W> {
     pub fn new(input: R, output: W, executable: Data) -> Self {
-        let _ = env_logger::init();
-
         let memory = Memory::from_executable(executable);
 
         VM {
@@ -137,10 +135,18 @@ impl<R: Read, W: Write> VM<R, W> {
         match opcode {
             NOP => (),
             PUSH => {
-                self.stack_push(args[0]);
+                if self.get_register(SP) <= self.memory.stack_begin {
+                    self.process_event(SEGFAULT, 0x00);
+                } else {
+                    self.stack_push(args[0]);
+                }
             }
             POP => {
-                let _ = self.stack_pop();
+                if self.stack().is_empty() {
+                    self.process_event(SEGFAULT, 0x00);
+                } else {
+                    let _ = self.stack_pop();
+                }
             }
             ADD => {
                 let value = Wrapping(args[0]) + Wrapping(args[1]);
@@ -209,6 +215,9 @@ impl<R: Read, W: Write> VM<R, W> {
                 }
                 OUTPUT => {
                     self.output.write(&[argument]);
+                }
+                SEGFAULT => {
+                    self.output.write(b"Segfault");
                 }
                 UNKNOWN_ERROR => {
                     self.output.write(b"Unknown Error");

@@ -272,7 +272,12 @@ mod tests {
             assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
+    }
 
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    #[ignore]
+    #[test]
+    fn stack_damage() {
         {
             let executable = vec![
                 0x00, 0x00,
@@ -743,6 +748,8 @@ mod tests {
            mut executable: Data,
            data_size: Word)
            -> (Data, VM<BufReader<DataSlice>, BufWriter<Data>>) {
+        let _ = env_logger::init();
+
         let code_size = executable.len() as Word - CODE_OFFSET - data_size;
         Endian::write_u16(&mut executable, code_size);
 
