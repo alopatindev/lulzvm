@@ -26,7 +26,7 @@ pub struct Memory {
 impl Memory {
     pub fn from_executable(mut executable: Data) -> Memory {
         let executable_size = executable.len() as Word;
-        let new_size = executable_size + REGISTERS_SIZE + STACK_SIZE + EVENT_HANDLERS +
+        let new_size = executable_size + REGISTERS_SIZE + STACK_SIZE + EVENT_HANDLERS_SIZE +
                        EVENT_QUEUE_SIZE;
         executable.resize(new_size as usize, 0);
 
@@ -41,7 +41,7 @@ impl Memory {
         let data_end = executable_size;
 
         let event_handlers_begin = stack_end;
-        let event_handlers_end = stack_end + EVENT_HANDLERS;
+        let event_handlers_end = stack_end + EVENT_HANDLERS_SIZE;
 
         let event_queue_begin = event_handlers_end;
         let event_queue_end = event_handlers_end + EVENT_QUEUE_SIZE;
@@ -68,11 +68,10 @@ impl Memory {
         }
     }
 
-    pub fn stack(&self, sp: Word) -> DataSlice {
-        assert!(sp >= self.stack_begin && sp <= self.stack_end);
-        let sp = sp as usize;
-        let stack_end = self.stack_end as usize;
-        &self.raw[sp..stack_end]
+    pub fn code(&self) -> DataSlice {
+        let begin = self.code_begin as usize;
+        let end = self.code_end as usize;
+        &self.raw[begin..end]
     }
 
     pub fn data(&self) -> DataSlice {
@@ -81,21 +80,35 @@ impl Memory {
         &self.raw[begin..end]
     }
 
+    pub fn stack(&self, sp: Word) -> DataSlice {
+        assert_ge!(sp, self.stack_begin);
+        assert_le!(sp, self.stack_end);
+        let sp = sp as usize;
+        let stack_end = self.stack_end as usize;
+        &self.raw[sp..stack_end]
+    }
+
+    pub fn get_event_handler(&self, event: u8) -> Word {
+        let event = event as Word;
+        assert_le!(0, event);
+        assert_gt!(EVENT_HANDLERS, event);
+        let offset = self.event_handlers_begin + event;
+        self.read_word(offset)
+    }
+
+    pub fn event_queue(&self, ep: Word, ee: Word) -> DataSlice {
+        assert_ge!(ep, self.event_queue_begin);
+        assert_le!(ep, self.event_queue_end);
+        assert_gt!(ee, self.event_queue_begin);
+        assert_le!(ee, self.event_queue_end);
+        let ep = ep as usize;
+        let ee = ee as usize;
+        let end = self.event_queue_end as usize;
+        &self.raw[ep..ee]
+    }
+
     pub fn is_in_code(&self, index: Word) -> bool {
         index >= self.code_begin && index < self.code_end
-    }
-
-    pub fn code(&self) -> DataSlice {
-        let begin = self.code_begin as usize;
-        let end = self.code_end as usize;
-        &self.raw[begin..end]
-    }
-
-    pub fn event_queue(&self, ep: Word) -> DataSlice {
-        assert!(ep >= self.event_queue_begin && ep <= self.event_queue_end);
-        let ep = ep as usize;
-        let end = self.event_queue_end as usize;
-        &self.raw[ep..end]
     }
 
     pub fn get(&self, index: Word) -> u8 {

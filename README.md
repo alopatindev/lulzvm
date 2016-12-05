@@ -39,11 +39,11 @@ Licensed under the terms of MIT (read LICENSE.txt for details).
 |0x01|CLOCK           |Normal  |
 |0x02|INPUT           |Normal  |
 |0x03|OUTPUT          |Normal  |
-|0xF0|TERMINATE       |Critical|
-|0xF1|SEGFAULT        |Critical|
-|0xF2|UNKNOWN_ERROR   |Critical|
+|0xF0|TERMINATE       |Fatal   |
+|0xF1|SEGFAULT        |Fatal   |
+|0xF2|UNKNOWN_ERROR   |Fatal   |
 
-Critical priority events run instantly, without queue.
+Fatal priority events run instantly.
 
 ### Registers
 |ID  |Title |Description          |
@@ -52,3 +52,4 @@ Critical priority events run instantly, without queue.
 |0x01|SP    |Stack Pointer        |
 |0x02|IR    |Instruction Register |
 |0x03|EP    |Event Queue Pointer  |
+|0x04|EE    |Event Queue End      |

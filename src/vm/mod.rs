@@ -44,8 +44,12 @@ impl<R: Read, W: Write> VM<R, W> {
         let stack_end = self.memory.stack_end;
         self.set_register(SP, stack_end);
 
+        let event_queue_end = self.memory.event_queue_end;
+        self.set_register(EP, event_queue_end);
+        self.set_register(EE, event_queue_end);
+
         let mut args = vec![];
-        while self.memory.is_in_code(self.get_register(PC)) {
+        while !self.is_terminated() {
             self.fetch()
                 .decode(&mut args)
                 .execute(&args)
@@ -54,17 +58,34 @@ impl<R: Read, W: Write> VM<R, W> {
         }
     }
 
-    pub fn stack(&self) -> DataSlice {
-        let sp = self.get_register(SP);
-        self.memory.stack(sp)
-    }
-
     pub fn code(&self) -> DataSlice {
         self.memory.code()
     }
 
     pub fn data(&self) -> DataSlice {
         self.memory.data()
+    }
+
+    pub fn stack(&self) -> DataSlice {
+        let sp = self.get_register(SP);
+        self.memory.stack(sp)
+    }
+
+    pub fn event_queue(&self) -> DataSlice {
+        let ep = self.get_register(EP);
+        let ee = self.get_register(EE);
+        self.memory.event_queue(ep, ee)
+    }
+
+    fn terminate(&mut self) {
+        debug!("terminate {:?}", self);
+        let code_end = self.memory.code_end;
+        self.set_register(PC, code_end);
+    }
+
+    fn is_terminated(&self) -> bool {
+        let pc = self.get_register(PC);
+        !self.memory.is_in_code(pc)
     }
 
     fn fetch(&mut self) -> &mut Self {
@@ -80,7 +101,18 @@ impl<R: Read, W: Write> VM<R, W> {
 
         let opcode = self.get_register(IR) as u8;
         match opcode {
-            PUSH | INT => args.push(self.next_code_byte()),
+            PUSH => args.push(self.next_code_byte()),
+            POP => (),
+            INT => {
+                let event = self.next_code_byte();
+                let argument = if self.stack().is_empty() {
+                    0x00
+                } else {
+                    self.stack_top()
+                };
+                args.push(argument);
+                args.push(event);
+            }
             ADD | SUB | MUL | DIV | MOD => {
                 args.push(self.stack_pop());
                 args.push(self.stack_pop());
@@ -99,6 +131,9 @@ impl<R: Read, W: Write> VM<R, W> {
         match opcode {
             PUSH => {
                 self.stack_push(args[0]);
+            }
+            POP => {
+                let _ = self.stack_pop();
             }
             ADD => {
                 let value = Wrapping(args[0]) + Wrapping(args[1]);
@@ -124,10 +159,12 @@ impl<R: Read, W: Write> VM<R, W> {
             }
             INT => {
                 let event = args[0];
+                let argument = args[1];
                 if events::is_critical(event) {
-                    self.clear_event_queue();
+                    self.process_event(event, argument);
+                } else {
+                    self.event_queue_push(event, argument);
                 }
-                self.enqueue_event(event);
             }
             _ => unimplemented!(),
         }
@@ -135,26 +172,57 @@ impl<R: Read, W: Write> VM<R, W> {
         self
     }
 
-    fn process_events(&mut self) {
-        unimplemented!()
-    }
-
-    fn process_event(&mut self, id: u8) {
-        match id {
-            TERMINATE => {
-                let code_end = self.memory.data_begin;
-                self.set_register(PC, code_end);
+    fn process_event(&mut self, event: u8, argument: u8) {
+        let handler = self.memory.get_event_handler(event);
+        if handler == 0 {
+            if events::is_critical(event) {
+                self.terminate();
             }
-            _ => unimplemented!(),
+        } else {
+            let pc = self.get_register(PC);
+            self.stack_push_word(pc);
+            self.stack_push(argument);
+            self.set_register(PC, handler);
         }
     }
 
-    fn enqueue_event(&mut self, id: u8) {
-        unimplemented!()
+    fn process_events(&mut self) {
+        if !(self.is_terminated() || self.event_queue().is_empty()) {
+            let (event, argument) = self.event_queue_pop();
+            self.process_event(event, argument);
+        }
     }
 
-    fn clear_event_queue(&mut self) {
-        unimplemented!()
+    fn event_queue_push(&mut self, event: u8, argument: u8) {
+        self.decrement_register(EP);
+        let ep = self.get_register(EP);
+        self.memory.put(ep, argument);
+
+        self.decrement_register(EP);
+        let ep = self.get_register(EP);
+        self.memory.put(ep, event);
+    }
+
+    fn event_queue_pop(&mut self) -> (u8, u8) {
+        let ee = self.get_register(EE);
+        let ep = self.get_register(EP);
+        assert_lt!(ep, ee);
+
+        self.decrement_register(EE);
+        let ee = self.get_register(EE);
+        let argument = self.memory.get(ee);
+
+        self.decrement_register(EE);
+        let ee = self.get_register(EE);
+        let event = self.memory.get(ee);
+
+        if ep == ee {
+            let event_queue_end = self.memory.event_queue_end;
+            self.set_register(EP, event_queue_end);
+            self.set_register(EE, event_queue_end);
+        }
+
+        (event, argument)
     }
 
     fn next_code_byte(&mut self) -> u8 {
@@ -163,33 +231,6 @@ impl<R: Read, W: Write> VM<R, W> {
         self.increment_register(PC);
         value
     }
-
-    // fn read_memory(&mut self) -> Word {
-    //     let code_begin = self.get_register(PC);
-    //     let mode = self.memory.get(code_begin);
-    //     self.increment_register(PC);
-    //
-    //     match mode {
-    //         REG => {
-    //             let code_begin = self.get_register(PC);
-    //             self.increment_register(PC);
-    //             let register_id = self.memory.get(code_begin);
-    //             self.get_register(register_id)
-    //         }
-    //         PTR => unimplemented!(),
-    //         PTR_WITH_OFFSET => unimplemented!(),
-    //         VALUE => {
-    //             let code_begin = self.get_register(PC) as usize;
-    //             self.increment_register(PC);
-    //             let value = self.memory.read_word(code_begin);
-    //             for _ in 0..WORD_SIZE {
-    //                 self.increment_register(PC);
-    //             }
-    //             value
-    //         }
-    //         _ => unreachable!(),
-    //     }
-    // }
 
     fn get_register(&self, id: u8) -> Word {
         self.registers[id as usize]
@@ -208,10 +249,14 @@ impl<R: Read, W: Write> VM<R, W> {
         self.registers[id as usize] -= 1;
     }
 
+    fn stack_top(&self) -> u8 {
+        let sp = self.get_register(SP);
+        self.memory.get(sp)
+    }
+
     fn stack_pop(&mut self) -> u8 {
         debug!("stack_pop from [{}]", data_to_hex(self.stack()));
-        let sp = self.get_register(SP);
-        let value = self.memory.get(sp);
+        let value = self.stack_top();
         self.increment_register(SP);
         value
     }
@@ -221,6 +266,11 @@ impl<R: Read, W: Write> VM<R, W> {
         self.decrement_register(SP);
         let sp = self.get_register(SP);
         self.memory.put(sp, value);
+    }
+
+    fn stack_push_word(&mut self, value: Word) {
+        debug!("stack_push_word to [{}]", data_to_hex(self.stack()));
+        unimplemented!()
     }
 }
 
@@ -251,8 +301,9 @@ mod tests {
             let executable = vec![0x00, 0x00];
             let (output, vm) = run(&[], executable, 0);
 
-            assert!(vm.stack().is_empty());
             assert!(vm.data().is_empty());
+            assert!(vm.stack().is_empty());
+            assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
 
@@ -262,8 +313,9 @@ mod tests {
                 NOP];
             let (output, vm) = run(&[], executable, 0);
 
-            assert!(vm.stack().is_empty());
             assert!(vm.data().is_empty());
+            assert!(vm.stack().is_empty());
+            assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
 
@@ -277,8 +329,9 @@ mod tests {
 
             let (output, vm) = run(&[], executable, 0);
 
-            assert_eq!(&[0x03, 0x04], vm.stack());
             assert!(vm.data().is_empty());
+            assert_eq!(&[0x03, 0x04], vm.stack());
+            assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
 
@@ -294,8 +347,9 @@ mod tests {
 
             let (output, vm) = run(&[], executable, 0);
 
-            assert_eq!([0], vm.stack());
             assert!(vm.data().is_empty());
+            assert_eq!([0], vm.stack());
+            assert!(vm.event_queue().is_empty());
             assert_eq!(&[9, 8, 7, 6, 5, 4, 3, 2, 1, 0], output.as_slice());
         }
 
@@ -321,8 +375,9 @@ mod tests {
 
             let (output, vm) = run(&[], executable, 4);
 
-            assert_eq!(&[0x00], vm.stack());
             assert_eq!(&[0x03, 0x02, 0x01, 0x00], vm.data());
+            assert_eq!(&[0x00], vm.stack());
+            assert!(vm.event_queue().is_empty());
             assert_eq!(&[0x03, 0x02, 0x01], output.as_slice());
         }
 
@@ -346,8 +401,9 @@ mod tests {
             let input = [0x03, 0x02, 0x01, 0x00];
             let (output, vm) = run(&input, executable, 0);
 
-            assert_eq!(&[0x00, 0x00], vm.stack());
             assert!(vm.data().is_empty());
+            assert_eq!(&[0x00, 0x00], vm.stack());
+            assert!(vm.event_queue().is_empty());
             assert_eq!(&[0x03, 0x02, 0x01, 0x00], output.as_slice());
         }
 
@@ -373,8 +429,9 @@ mod tests {
             let input = [0x03, 0x02, 0x01, 0x00];
             let (output, vm) = run(&input, executable, 0);
 
-            assert_eq!(&[0x00, 0x00], vm.stack());
             assert!(vm.data().is_empty());
+            assert_eq!(&[0x00, 0x00], vm.stack());
+            assert!(vm.event_queue().is_empty());
             assert_eq!(&[0x06, 0x04, 0x02, 0x00], output.as_slice());
         }
 
@@ -396,8 +453,9 @@ mod tests {
 
             let (output, vm) = run(&[], executable, 1);
 
-            assert_eq!(&[0x03], vm.stack());
             assert_eq!(&[0x02], vm.data());
+            assert_eq!(&[0x03], vm.stack());
+            assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
 
@@ -417,8 +475,9 @@ mod tests {
 
             let (output, vm) = run(&[], executable, 0);
 
-            assert_eq!(&[0x02, 0x03], vm.stack());
             assert!(vm.data().is_empty());
+            assert_eq!(&[0x02, 0x03], vm.stack());
+            assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
     }
@@ -434,8 +493,9 @@ mod tests {
 
             let (output, vm) = run(&[], executable, 0);
 
-            assert_eq!(&[0x55], vm.stack());
             assert!(vm.data().is_empty());
+            assert_eq!(&[0x55], vm.stack());
+            assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
 
@@ -448,8 +508,9 @@ mod tests {
 
             let (output, vm) = run(&[], executable, 0);
 
-            assert_eq!(&[0x77, 0x55], vm.stack());
             assert!(vm.data().is_empty());
+            assert_eq!(&[0x77, 0x55], vm.stack());
+            assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
 
@@ -462,8 +523,9 @@ mod tests {
 
             let (output, vm) = run(&[], executable, 0);
 
-            assert!(vm.stack().is_empty());
             assert!(vm.data().is_empty());
+            assert!(vm.stack().is_empty());
+            assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
 
@@ -478,8 +540,9 @@ mod tests {
 
             let (output, vm) = run(&[], executable, 0);
 
-            assert!(vm.stack().is_empty());
             assert!(vm.data().is_empty());
+            assert!(vm.stack().is_empty());
+            assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
 
@@ -493,8 +556,9 @@ mod tests {
 
             let (output, vm) = run(&[], executable, 0);
 
-            assert_eq!(&[0x55], vm.stack());
             assert!(vm.data().is_empty());
+            assert_eq!(&[0x55], vm.stack());
+            assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
 
@@ -506,8 +570,9 @@ mod tests {
 
             let (output, vm) = run(&[], executable, 0);
 
-            assert!(vm.stack().is_empty());
             assert!(vm.data().is_empty());
+            assert!(vm.stack().is_empty());
+            assert!(vm.event_queue().is_empty());
             assert_eq!(b"Segfault", output.as_slice());
         }
 
@@ -525,8 +590,9 @@ mod tests {
 
             let (output, vm) = run(&[], executable, 0);
 
-            assert_eq!(STACK_SIZE, vm.stack().len() as Word);
             assert!(vm.data().is_empty());
+            assert_eq!(STACK_SIZE, vm.stack().len() as Word);
+            assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
 
@@ -544,10 +610,54 @@ mod tests {
 
             let (output, vm) = run(&[], executable, 0);
 
-            assert_eq!(STACK_SIZE, vm.stack().len() as Word);
             assert!(vm.data().is_empty());
+            assert_eq!(STACK_SIZE, vm.stack().len() as Word);
+            assert!(vm.event_queue().is_empty());
             assert_eq!(b"Segfault", output.as_slice());
         }
+    }
+
+    #[test]
+    fn event_queue() {
+        let executable = vec![0x00, 0x00];
+
+        let (output, mut vm) = run(&[], executable, 0);
+        let event_queue_end = vm.memory.event_queue_end;
+
+        assert_eq!(event_queue_end, vm.get_register(EP));
+        assert_eq!(event_queue_end, vm.get_register(EE));
+
+        vm.event_queue_push(CLOCK, 0x05);
+        vm.event_queue_push(OUTPUT, 0x06);
+
+        assert_eq!(&[OUTPUT, 0x06, CLOCK, 0x05], vm.event_queue());
+
+        assert_lt!(vm.get_register(EP), vm.get_register(EE));
+        assert_eq!(event_queue_end, vm.get_register(EE));
+
+        let (event, argument) = vm.event_queue_pop();
+        assert_eq!(CLOCK, event);
+        assert_eq!(0x05, argument);
+        assert_eq!(&[OUTPUT, 0x06], vm.event_queue());
+
+        assert_lt!(vm.get_register(EP), vm.get_register(EE));
+        assert_gt!(event_queue_end, vm.get_register(EE));
+
+        let (event, argument) = vm.event_queue_pop();
+        assert_eq!(OUTPUT, event);
+        assert_eq!(0x06, argument);
+        assert!(vm.event_queue().is_empty());
+
+        assert_eq!(event_queue_end, vm.get_register(EP));
+        assert_eq!(event_queue_end, vm.get_register(EE));
+
+        vm.event_queue_push(CLOCK, 0x07);
+        let _ = vm.event_queue_pop();
+
+        assert!(vm.data().is_empty());
+        assert!(vm.stack().is_empty());
+        assert!(vm.event_queue().is_empty());
+        assert!(output.is_empty());
     }
 
     #[cfg_attr(rustfmt, rustfmt_skip)]
@@ -562,8 +672,9 @@ mod tests {
 
             let (output, vm) = run(&[], executable, 1);
 
-            assert_eq!(&[0x7b], vm.stack());
             assert!(vm.data().is_empty());
+            assert_eq!(&[0x7b], vm.stack());
+            assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
 
@@ -575,8 +686,9 @@ mod tests {
 
             let (output, vm) = run(&[], executable, 0);
 
-            assert!(vm.stack().is_empty());
             assert!(vm.data().is_empty());
+            assert!(vm.stack().is_empty());
+            assert!(vm.event_queue().is_empty());
             assert_eq!(b"Segfault", output.as_slice());
         }
 
@@ -589,8 +701,9 @@ mod tests {
 
             let (output, vm) = run(&[], executable, 0);
 
-            assert!(vm.stack().is_empty());
             assert!(vm.data().is_empty());
+            assert!(vm.stack().is_empty());
+            assert!(vm.event_queue().is_empty());
             assert_eq!(b"Segfault", output.as_slice());
         }
     }
@@ -609,8 +722,9 @@ mod tests {
 
             let (output, vm) = run(&[], executable, 0);
 
-            assert_eq!(&[0x05], vm.stack());
             assert!(vm.data().is_empty());
+            assert_eq!(&[0x05], vm.stack());
+            assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
 
@@ -624,8 +738,9 @@ mod tests {
 
             let (output, vm) = run(&[], executable, 0);
 
-            assert_eq!(&[0], vm.stack());
             assert!(vm.data().is_empty());
+            assert_eq!(&[0], vm.stack());
+            assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
 
@@ -639,8 +754,9 @@ mod tests {
 
             let (output, vm) = run(&[], executable, 0);
 
-            assert_eq!(&[0x01], vm.stack());
             assert!(vm.data().is_empty());
+            assert_eq!(&[0x01], vm.stack());
+            assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
 
@@ -654,8 +770,9 @@ mod tests {
 
             let (output, vm) = run(&[], executable, 0);
 
-            assert_eq!(&[0xff], vm.stack());
             assert!(vm.data().is_empty());
+            assert_eq!(&[0xff], vm.stack());
+            assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
 
@@ -669,8 +786,9 @@ mod tests {
 
             let (output, vm) = run(&[], executable, 0);
 
-            assert_eq!(&[0x06], vm.stack());
             assert!(vm.data().is_empty());
+            assert_eq!(&[0x06], vm.stack());
+            assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
 
@@ -684,8 +802,9 @@ mod tests {
 
             let (output, vm) = run(&[], executable, 0);
 
-            assert_eq!(&[0xf6], vm.stack());
             assert!(vm.data().is_empty());
+            assert_eq!(&[0xf6], vm.stack());
+            assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
 
@@ -699,8 +818,9 @@ mod tests {
 
             let (output, vm) = run(&[], executable, 0);
 
-            assert_eq!(&[0x03], vm.stack());
             assert!(vm.data().is_empty());
+            assert_eq!(&[0x03], vm.stack());
+            assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
 
@@ -714,8 +834,9 @@ mod tests {
 
             let (output, vm) = run(&[], executable, 0);
 
-            assert!(vm.stack().is_empty());
             assert!(vm.data().is_empty());
+            assert!(vm.stack().is_empty());
+            assert!(vm.event_queue().is_empty());
             assert_eq!(b"Unknown Error", output.as_slice());
         }
 
@@ -729,8 +850,9 @@ mod tests {
 
             let (output, vm) = run(&[], executable, 0);
 
-            assert_eq!(&[0x03], vm.stack());
             assert!(vm.data().is_empty());
+            assert_eq!(&[0x03], vm.stack());
+            assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
 
@@ -744,8 +866,9 @@ mod tests {
 
             let (output, vm) = run(&[], executable, 0);
 
-            assert!(vm.stack().is_empty());
             assert!(vm.data().is_empty());
+            assert!(vm.stack().is_empty());
+            assert!(vm.event_queue().is_empty());
             assert_eq!(b"Unknown Error", output.as_slice());
         }
 
@@ -758,8 +881,9 @@ mod tests {
 
             let (output, vm) = run(&[], executable, 0);
 
-            assert_eq!(&[0x06], vm.stack());
             assert!(vm.data().is_empty());
+            assert_eq!(&[0x06], vm.stack());
+            assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
 
@@ -772,8 +896,9 @@ mod tests {
 
             let (output, vm) = run(&[], executable, 0);
 
-            assert_eq!(&[0x00], vm.stack());
             assert!(vm.data().is_empty());
+            assert_eq!(&[0x00], vm.stack());
+            assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
 
@@ -786,8 +911,9 @@ mod tests {
 
             let (output, vm) = run(&[], executable, 0);
 
-            assert_eq!(&[0x04], vm.stack());
             assert!(vm.data().is_empty());
+            assert_eq!(&[0x04], vm.stack());
+            assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
 
@@ -800,8 +926,9 @@ mod tests {
 
             let (output, vm) = run(&[], executable, 0);
 
-            assert_eq!(&[0xff], vm.stack());
             assert!(vm.data().is_empty());
+            assert_eq!(&[0xff], vm.stack());
+            assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
     }
@@ -837,6 +964,8 @@ mod tests {
     #[cfg_attr(rustfmt, rustfmt_skip)]
     #[test]
     fn events() {
+        // TODO: set event handler
+
         {
             let executable = vec![
                 0x00, 0x00,
@@ -845,8 +974,9 @@ mod tests {
 
             let (output, vm) = run(&[], executable, 0);
 
-            assert!(vm.stack().is_empty());
             assert!(vm.data().is_empty());
+            assert!(vm.stack().is_empty());
+            assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
 
@@ -859,8 +989,9 @@ mod tests {
             let input = [0x11];
             let (output, vm) = run(&input, executable, 0);
 
-            assert_eq!(&[0x11], vm.stack());
             assert!(vm.data().is_empty());
+            assert_eq!(&[0x11], vm.stack());
+            assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
 
@@ -873,8 +1004,9 @@ mod tests {
 
             let (output, vm) = run(&[], executable, 0);
 
-            assert_eq!(&[0x11], vm.stack());
             assert!(vm.data().is_empty());
+            assert_eq!(&[0x11], vm.stack());
+            assert!(vm.event_queue().is_empty());
             assert_eq!(&[0x11], output.as_slice());
         }
 
@@ -888,8 +1020,9 @@ mod tests {
 
             let (output, vm) = run(&[], executable, 0);
 
-            assert!(vm.stack().is_empty());
             assert!(vm.data().is_empty());
+            assert!(vm.stack().is_empty());
+            assert!(vm.event_queue().is_empty());
             assert_eq!(b"Unknown Error", output.as_slice());
         }
     }
