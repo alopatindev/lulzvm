@@ -217,7 +217,8 @@ impl<R: Read, W: Write> VM<R, W> {
                 if args.len() < 2 {
                     self.process_event(SEGFAULT, 0x00);
                 } else {
-                    unimplemented!()
+                    self.stack_push(args[0]);
+                    self.stack_push(args[1]);
                 }
             }
             EMIT => {
