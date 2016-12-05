@@ -104,6 +104,11 @@ impl<R: Read, W: Write> VM<R, W> {
 
         let opcode = self.get_register(IR) as u8;
         match opcode {
+            ADD | SUB | MUL | DIV | MOD => {
+                args.push(self.stack_pop());
+                args.push(self.stack_pop());
+            }
+            INC | DEC => args.push(self.stack_pop()),
             PUSH => args.push(self.next_code_byte()),
             POP | NOP => (),
             EMIT => {
@@ -116,11 +121,6 @@ impl<R: Read, W: Write> VM<R, W> {
                 args.push(event);
                 args.push(argument);
             }
-            ADD | SUB | MUL | DIV | MOD => {
-                args.push(self.stack_pop());
-                args.push(self.stack_pop());
-            }
-            INC | DEC => args.push(self.stack_pop()),
             _ => unimplemented!(),
         }
 
@@ -133,20 +133,6 @@ impl<R: Read, W: Write> VM<R, W> {
         let opcode = self.get_register(IR) as u8;
         match opcode {
             NOP => (),
-            PUSH => {
-                if self.get_register(SP) <= self.memory.stack_begin {
-                    self.process_event(SEGFAULT, 0x00);
-                } else {
-                    self.stack_push(args[0]);
-                }
-            }
-            POP => {
-                if self.stack().is_empty() {
-                    self.process_event(SEGFAULT, 0x00);
-                } else {
-                    let _ = self.stack_pop();
-                }
-            }
             ADD => {
                 let value = Wrapping(args[0]) + Wrapping(args[1]);
                 self.stack_push(value.0);
@@ -182,6 +168,20 @@ impl<R: Read, W: Write> VM<R, W> {
             DEC => {
                 let value = Wrapping(args[0]) - Wrapping(1);
                 self.stack_push(value.0);
+            }
+            PUSH => {
+                if self.get_register(SP) <= self.memory.stack_begin {
+                    self.process_event(SEGFAULT, 0x00);
+                } else {
+                    self.stack_push(args[0]);
+                }
+            }
+            POP => {
+                if self.stack().is_empty() {
+                    self.process_event(SEGFAULT, 0x00);
+                } else {
+                    let _ = self.stack_pop();
+                }
             }
             EMIT => {
                 let event = args[0];
