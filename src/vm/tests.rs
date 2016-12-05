@@ -271,6 +271,22 @@ mod tests {
             assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                PUSH, 0x88,
+                PUSH, 0x99,
+                SWP];
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert!(vm.data().is_empty());
+            assert_eq!(&[0x88, 0x99], vm.stack());
+            assert!(vm.event_queue().is_empty());
+            assert!(output.is_empty());
+        }
     }
 
     #[cfg_attr(rustfmt, rustfmt_skip)]
@@ -327,6 +343,20 @@ mod tests {
 
             assert!(vm.data().is_empty());
             assert_eq!(STACK_SIZE, vm.stack().len() as Word);
+            assert!(vm.event_queue().is_empty());
+            assert_eq!(b"Segfault", output.as_slice());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                SWP];
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert!(vm.data().is_empty());
+            assert!(vm.stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert_eq!(b"Segfault", output.as_slice());
         }
@@ -387,8 +417,27 @@ mod tests {
 
             let (output, vm) = run(&[], executable, 1);
 
-            assert!(vm.data().is_empty());
+            assert_eq!(&[0x7b], vm.data());
             assert_eq!(&[0x7b], vm.stack());
+            assert!(vm.event_queue().is_empty());
+            assert!(output.is_empty());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                PUSH, 0x00,
+                LOAD, PTR_WITH_OFFSET, 0x08, 0x00,
+                SWP,
+                INC,
+                SWP,
+                0x11, 0x22];
+
+            let (output, vm) = run(&[], executable, 2);
+
+            assert_eq!(&[0x11, 0x22], vm.data());
+            assert_eq!(&[0x01, 0x22, 0x11], vm.stack());
             assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
@@ -420,6 +469,23 @@ mod tests {
             assert!(vm.stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert_eq!(b"Segfault", output.as_slice());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                LOAD, PTR_WITH_OFFSET, 0x06, 0x00,
+                                               // if empty stack
+                                               // then use 0 as offset
+                0x88];
+
+            let (output, vm) = run(&[], executable, 1);
+
+            assert_eq!(&[0x88], vm.data());
+            assert_eq!(&[0x88], vm.stack());
+            assert!(vm.event_queue().is_empty());
+            assert!(output.is_empty());
         }
     }
 
@@ -645,6 +711,43 @@ mod tests {
             assert_eq!(&[0xff], vm.stack());
             assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
+        }
+    }
+
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    #[test]
+    fn arithmetic_missing_args() {
+        for &opcode in &[ADD, SUB, DIV, MUL, MOD] {
+            {
+                let executable = vec![
+                    0x00, 0x00,
+
+                    PUSH, 0x01,
+                    opcode];
+
+                let (output, vm) = run(&[], executable, 0);
+
+                assert!(vm.data().is_empty());
+                assert_eq!(&[0x01], vm.stack());
+                assert!(vm.event_queue().is_empty());
+                assert_eq!(b"Segfault", output.as_slice());
+            }
+        }
+
+        for &opcode in &[ADD, SUB, DIV, MUL, MOD, INC, DEC] {
+            {
+                let executable = vec![
+                    0x00, 0x00,
+
+                    opcode];
+
+                let (output, vm) = run(&[], executable, 0);
+
+                assert!(vm.data().is_empty());
+                assert!(vm.stack().is_empty());
+                assert!(vm.event_queue().is_empty());
+                assert_eq!(b"Segfault", output.as_slice());
+            }
         }
     }
 

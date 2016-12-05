@@ -10,9 +10,9 @@ pub const DEC: u8 = 0x07;
 
 pub const PUSH: u8 = 0x10;
 pub const POP: u8 = 0x11;
-pub const STORE: u8 = 0x12;  // stack -> data
-pub const LOAD: u8 = 0x13;   // data -> stack
-pub const SWP: u8 = 0x14;
+pub const SWP: u8 = 0x12;
+pub const STORE: u8 = 0x13;  // stack -> data
+pub const LOAD: u8 = 0x14;   // data -> stack
 
 pub const JMP: u8 = 0x20;
 pub const JE: u8 = 0x21;     // ==

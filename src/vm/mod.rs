@@ -104,11 +104,17 @@ impl<R: Read, W: Write> VM<R, W> {
 
         let opcode = self.get_register(IR) as u8;
         match opcode {
-            ADD | SUB | MUL | DIV | MOD => {
-                args.push(self.stack_pop());
-                args.push(self.stack_pop());
+            ADD | SUB | MUL | DIV | MOD | SWP => {
+                if self.stack().len() >= 2 {
+                    args.push(self.stack_pop());
+                    args.push(self.stack_pop());
+                }
             }
-            INC | DEC => args.push(self.stack_pop()),
+            INC | DEC => {
+                if !self.stack().is_empty() {
+                    args.push(self.stack_pop());
+                }
+            }
             PUSH => args.push(self.next_code_byte()),
             POP | NOP => (),
             EMIT => {
@@ -134,19 +140,33 @@ impl<R: Read, W: Write> VM<R, W> {
         match opcode {
             NOP => (),
             ADD => {
-                let value = Wrapping(args[0]) + Wrapping(args[1]);
-                self.stack_push(value.0);
+                if args.is_empty() {
+                    self.process_event(SEGFAULT, 0x00);
+                } else {
+                    let value = Wrapping(args[0]) + Wrapping(args[1]);
+                    self.stack_push(value.0);
+                }
             }
             SUB => {
-                let value = Wrapping(args[0]) - Wrapping(args[1]);
-                self.stack_push(value.0);
+                if args.is_empty() {
+                    self.process_event(SEGFAULT, 0x00);
+                } else {
+                    let value = Wrapping(args[0]) - Wrapping(args[1]);
+                    self.stack_push(value.0);
+                }
             }
             MUL => {
-                let value = Wrapping(args[0]) * Wrapping(args[1]);
-                self.stack_push(value.0);
+                if args.is_empty() {
+                    self.process_event(SEGFAULT, 0x00);
+                } else {
+                    let value = Wrapping(args[0]) * Wrapping(args[1]);
+                    self.stack_push(value.0);
+                }
             }
             DIV => {
-                if args[1] == 0 {
+                if args.is_empty() {
+                    self.process_event(SEGFAULT, 0x00);
+                } else if args[1] == 0 {
                     self.process_event(UNKNOWN_ERROR, 0x00);
                 } else {
                     let value = Wrapping(args[0]) / Wrapping(args[1]);
@@ -154,7 +174,9 @@ impl<R: Read, W: Write> VM<R, W> {
                 }
             }
             MOD => {
-                if args[1] == 0 {
+                if args.is_empty() {
+                    self.process_event(SEGFAULT, 0x00);
+                } else if args[1] == 0 {
                     self.process_event(UNKNOWN_ERROR, 0x00);
                 } else {
                     let value = Wrapping(args[0]) % Wrapping(args[1]);
@@ -162,12 +184,20 @@ impl<R: Read, W: Write> VM<R, W> {
                 }
             }
             INC => {
-                let value = Wrapping(args[0]) + Wrapping(1);
-                self.stack_push(value.0);
+                if args.is_empty() {
+                    self.process_event(SEGFAULT, 0x00);
+                } else {
+                    let value = Wrapping(args[0]) + Wrapping(1);
+                    self.stack_push(value.0);
+                }
             }
             DEC => {
-                let value = Wrapping(args[0]) - Wrapping(1);
-                self.stack_push(value.0);
+                if args.is_empty() {
+                    self.process_event(SEGFAULT, 0x00);
+                } else {
+                    let value = Wrapping(args[0]) - Wrapping(1);
+                    self.stack_push(value.0);
+                }
             }
             PUSH => {
                 if self.get_register(SP) <= self.memory.stack_begin {
@@ -181,6 +211,13 @@ impl<R: Read, W: Write> VM<R, W> {
                     self.process_event(SEGFAULT, 0x00);
                 } else {
                     let _ = self.stack_pop();
+                }
+            }
+            SWP => {
+                if args.len() < 2 {
+                    self.process_event(SEGFAULT, 0x00);
+                } else {
+                    unimplemented!()
                 }
             }
             EMIT => {
