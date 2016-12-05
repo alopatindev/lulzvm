@@ -155,14 +155,20 @@ impl<R: Read, W: Write> VM<R, W> {
                 self.stack_push(value.0);
             }
             DIV => {
-                // FIXME: check div by zero
-                let value = Wrapping(args[0]) / Wrapping(args[1]);
-                self.stack_push(value.0);
+                if args[1] == 0 {
+                    self.process_event(UNKNOWN_ERROR, 0x00);
+                } else {
+                    let value = Wrapping(args[0]) / Wrapping(args[1]);
+                    self.stack_push(value.0);
+                }
             }
             MOD => {
-                // FIXME: check mod by zero
-                let value = Wrapping(args[0]) % Wrapping(args[1]);
-                self.stack_push(value.0);
+                if args[1] == 0 {
+                    self.process_event(UNKNOWN_ERROR, 0x00);
+                } else {
+                    let value = Wrapping(args[0]) % Wrapping(args[1]);
+                    self.stack_push(value.0);
+                }
             }
             INT => {
                 let event = args[0];
@@ -186,22 +192,27 @@ impl<R: Read, W: Write> VM<R, W> {
 
         let handler = self.memory.get_event_handler(event);
         if handler == 0 {
+            debug!("handler is NOT set");
+            match event {
+                INPUT => {
+                    let mut buffer = [0; 1];
+                    let _ = self.input.read(&mut buffer).unwrap();
+                    self.stack_push(buffer[0]);
+                }
+                OUTPUT => {
+                    self.output.write(&[argument]);
+                }
+                UNKNOWN_ERROR => {
+                    self.output.write(b"Unknown Error");
+                }
+                _ => debug!("no default handler"),
+            }
+
             if events::is_critical(event) {
                 self.terminate();
-            } else {
-                match event {
-                    INPUT => {
-                        let mut buffer = [0; 1];
-                        let _ = self.input.read(&mut buffer).unwrap();
-                        self.stack_push(buffer[0]);
-                    }
-                    OUTPUT => {
-                        self.output.write(&[argument]);
-                    }
-                    _ => unimplemented!(),
-                }
             }
         } else {
+            debug!("handler is set");
             let pc = self.get_register(PC);
             self.stack_push_word(pc);
             self.stack_push(argument);
