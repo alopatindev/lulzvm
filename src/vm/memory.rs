@@ -110,6 +110,10 @@ impl Memory {
         index >= self.code_begin && index < self.code_end
     }
 
+    pub fn is_in_data(&self, index: Word) -> bool {
+        index >= self.data_begin && index < self.data_end
+    }
+
     pub fn get(&self, index: Word) -> u8 {
         self.raw[index as usize]
     }
@@ -123,7 +127,7 @@ impl Memory {
         Self::read_word_from(&self.raw, index)
     }
 
-    fn read_word_from(data: DataSlice, index: Word) -> Word {
+    pub fn read_word_from(data: DataSlice, index: Word) -> Word {
         let index = index as usize;
         let slice = &data[index..(index + WORD_SIZE as usize)];
         Endian::read_u16(slice)

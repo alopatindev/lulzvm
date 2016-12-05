@@ -117,6 +117,11 @@ impl<R: Read, W: Write> VM<R, W> {
             }
             PUSH => args.push(self.next_code_byte()),
             POP | NOP => (),
+            LOAD | STORE => {
+                args.push(self.next_code_byte());
+                args.push(self.next_code_byte());
+                args.push(self.next_code_byte());
+            }
             EMIT => {
                 let event = self.next_code_byte();
                 let argument = if self.stack().is_empty() {
@@ -221,6 +226,15 @@ impl<R: Read, W: Write> VM<R, W> {
                     self.stack_push(args[1]);
                 }
             }
+            LOAD => {
+                match self.load_data(args) {
+                    Some(byte) => self.stack_push(byte),
+                    None => self.process_event(SEGFAULT, 0x00),
+                }
+            }
+            STORE => {
+                unimplemented!();
+            }
             EMIT => {
                 let event = args[0];
                 let argument = args[1];
@@ -234,6 +248,40 @@ impl<R: Read, W: Write> VM<R, W> {
         }
 
         self
+    }
+
+    fn load_data(&self, args: DataSlice) -> Option<u8> {
+        self.extract_data_ptr(args)
+            .map(|ptr| self.memory.get(ptr))
+    }
+
+    fn extract_data_ptr(&self, args: DataSlice) -> Option<Word> {
+        self.extract_ptr(args)
+            .and_then(|ptr| if self.memory.is_in_data(ptr) {
+                Some(ptr)
+            } else {
+                None
+            })
+    }
+
+    fn extract_ptr(&self, args: DataSlice) -> Option<Word> {
+        let mode = args[0];
+        let ptr = Memory::read_word_from(&args, 1);
+
+        let updated_ptr = match mode {
+            PTR => ptr,
+            PTR_WITH_OFFSET => {
+                if self.stack().is_empty() {
+                    return None;
+                } else {
+                    let offset = self.stack_top() as Word;
+                    ptr + offset
+                }
+            }
+            _ => unreachable!(),
+        };
+
+        Some(updated_ptr)
     }
 
     fn process_event(&mut self, event: u8, argument: u8) {
