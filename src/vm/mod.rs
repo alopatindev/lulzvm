@@ -24,6 +24,7 @@ pub struct VM<R: Read, W: Write> {
 
     registers: Registers,
     memory: Memory,
+    terminated: bool,
 }
 
 impl<R: Read, W: Write> VM<R, W> {
@@ -37,6 +38,7 @@ impl<R: Read, W: Write> VM<R, W> {
             output: output,
             registers: [0; REGISTERS as usize],
             memory: memory,
+            terminated: false,
         }
     }
 
@@ -51,12 +53,17 @@ impl<R: Read, W: Write> VM<R, W> {
         self.set_register(EE, event_queue_end);
 
         let mut args = vec![];
-        while !self.is_terminated() {
-            self.fetch()
-                .decode(&mut args)
-                .execute(&args)
-                .process_events();
-            args.clear();
+        while !self.terminated {
+            let pc = self.get_register(PC);
+            if !self.memory.is_in_code(pc) && self.event_queue().is_empty() {
+                self.terminate();
+            } else {
+                self.fetch()
+                    .decode(&mut args)
+                    .execute(&args)
+                    .process_events();
+                args.clear();
+            }
         }
     }
 
@@ -81,13 +88,7 @@ impl<R: Read, W: Write> VM<R, W> {
 
     fn terminate(&mut self) {
         debug!("terminate {:?}", self);
-        let code_end = self.memory.code_end;
-        self.set_register(PC, code_end);
-    }
-
-    fn is_terminated(&self) -> bool {
-        let pc = self.get_register(PC);
-        !self.memory.is_in_code(pc)
+        self.terminated = true;
     }
 
     fn fetch(&mut self) -> &mut Self {
@@ -104,7 +105,7 @@ impl<R: Read, W: Write> VM<R, W> {
         let opcode = self.get_register(IR) as u8;
         match opcode {
             PUSH => args.push(self.next_code_byte()),
-            POP => (),
+            POP | NOP => (),
             INT => {
                 let event = self.next_code_byte();
                 let argument = if self.stack().is_empty() {
@@ -131,6 +132,7 @@ impl<R: Read, W: Write> VM<R, W> {
 
         let opcode = self.get_register(IR) as u8;
         match opcode {
+            NOP => (),
             PUSH => {
                 self.stack_push(args[0]);
             }
@@ -189,7 +191,8 @@ impl<R: Read, W: Write> VM<R, W> {
     }
 
     fn process_events(&mut self) {
-        if !(self.is_terminated() || self.event_queue().is_empty()) {
+        let nothing_to_process = self.terminated || self.event_queue().is_empty();
+        if !nothing_to_process {
             let (event, argument) = self.event_queue_pop();
             self.process_event(event, argument);
         }

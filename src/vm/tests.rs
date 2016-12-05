@@ -676,6 +676,7 @@ mod tests {
     #[test]
     fn events() {
         // TODO: set event handler
+        // TODO: implement default handlers
 
         {
             let executable = vec![
