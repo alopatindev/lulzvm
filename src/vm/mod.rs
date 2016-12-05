@@ -2,7 +2,6 @@ use common::*;
 use env_logger;
 use std::fmt;
 use std::io::{Read, Write};
-use std::io::BufReader;
 use std::num::Wrapping;
 
 mod events;
@@ -214,13 +213,13 @@ impl<R: Read, W: Write> VM<R, W> {
                     self.stack_push(buffer[0]);
                 }
                 OUTPUT => {
-                    self.output.write(&[argument]);
+                    self.output.write(&[argument]).unwrap();
                 }
                 SEGFAULT => {
-                    self.output.write(b"Segfault");
+                    self.output.write(b"Segfault").unwrap();
                 }
                 UNKNOWN_ERROR => {
-                    self.output.write(b"Unknown Error");
+                    self.output.write(b"Unknown Error").unwrap();
                 }
                 _ => debug!("no default handler"),
             }

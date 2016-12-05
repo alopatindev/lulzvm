@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod tests {
     use byteorder::ByteOrder;
-    use self::events::*;
     use std::io::{BufReader, BufWriter};
     use super::*;
 

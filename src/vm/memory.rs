@@ -103,7 +103,6 @@ impl Memory {
         assert_le!(ee, self.event_queue_end);
         let ep = ep as usize;
         let ee = ee as usize;
-        let end = self.event_queue_end as usize;
         &self.raw[ep..ee]
     }
 
