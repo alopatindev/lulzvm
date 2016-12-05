@@ -33,5 +33,4 @@ pub const TEST: u8 = 0x44;
 
 pub const CALL: u8 = 0x51;
 pub const RET: u8 = 0x52;
-
-pub const INT: u8 = 0x60;
+pub const EMIT: u8 = 0x53;

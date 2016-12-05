@@ -52,7 +52,7 @@ mod tests {
                 PUSH, 0x00,                    // b
                 PUSH, 0x0a,                    // a
                 DEC,                           // a--
-                INT, OUTPUT,
+                EMIT, OUTPUT,
                 JNE, 0x06, 0];                 // a != b
 
             let (output, vm) = run(&[], executable, 0);
@@ -73,7 +73,7 @@ mod tests {
                 // label loop
                                                // d = [data segment + offset]
                 LOAD, PTR_WITH_OFFSET, 0x15, 0x00,
-                INT, OUTPUT,                   // print d
+                EMIT, OUTPUT,                   // print d
                 JE, 0x14, 0x00,                // if d == zero: goto end
                 POP,                           // pop d
                 INC,                           // offset++
@@ -98,8 +98,8 @@ mod tests {
                 PUSH, 0x00,                    // b
 
                 // label loop
-                INT, INPUT,                    // a
-                INT, OUTPUT,                   // print a
+                EMIT, INPUT,                    // a
+                EMIT, OUTPUT,                   // print a
                 JE, 0x0f, 0x00,                // if a == b: goto end
                 POP,                           // remove a
                 JMP, 0x04, 0x00                // goto loop
@@ -123,13 +123,13 @@ mod tests {
 
                 PUSH, 0x00,                    // const zero
                                                // loop:
-                INT, INPUT,                    //   x = read
+                EMIT, INPUT,                    //   x = read
                 CALL, PTR, 0x14, 0x00,         //   x = f(x)
-                INT, OUTPUT,                   //   print x
+                EMIT, OUTPUT,                   //   print x
                 JE, 0x12, 0x00,                // if x == zero: goto exit
                 POP,                           // pop x
                 JMP, 0x02, 0x00,               // goto loop
-                INT, TERMINATE,                // exit:
+                EMIT, TERMINATE,                // exit:
 
                                                // f:
                 PUSH, 0x02,
@@ -686,7 +686,7 @@ mod tests {
             let executable = vec![
                 0x00, 0x00,
 
-                INT, TERMINATE];
+                EMIT, TERMINATE];
 
             let (output, vm) = run(&[], executable, 0);
 
@@ -700,7 +700,7 @@ mod tests {
             let executable = vec![
                 0x00, 0x00,
 
-                INT, INPUT];
+                EMIT, INPUT];
 
             let input = [0x11];
             let (output, vm) = run(&input, executable, 0);
@@ -716,7 +716,7 @@ mod tests {
                 0x00, 0x00,
 
                 PUSH, 0x22,
-                INT, OUTPUT];
+                EMIT, OUTPUT];
 
             let (output, vm) = run(&[], executable, 0);
 

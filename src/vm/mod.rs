@@ -106,7 +106,7 @@ impl<R: Read, W: Write> VM<R, W> {
         match opcode {
             PUSH => args.push(self.next_code_byte()),
             POP | NOP => (),
-            INT => {
+            EMIT => {
                 let event = self.next_code_byte();
                 let argument = if self.stack().is_empty() {
                     0x00
@@ -183,7 +183,7 @@ impl<R: Read, W: Write> VM<R, W> {
                 let value = Wrapping(args[0]) - Wrapping(1);
                 self.stack_push(value.0);
             }
-            INT => {
+            EMIT => {
                 let event = args[0];
                 let argument = args[1];
                 if events::is_critical(event) {
