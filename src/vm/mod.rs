@@ -170,6 +170,14 @@ impl<R: Read, W: Write> VM<R, W> {
                     self.stack_push(value.0);
                 }
             }
+            INC => {
+                let value = Wrapping(args[0]) + Wrapping(1);
+                self.stack_push(value.0);
+            }
+            DEC => {
+                let value = Wrapping(args[0]) - Wrapping(1);
+                self.stack_push(value.0);
+            }
             INT => {
                 let event = args[0];
                 let argument = args[1];
