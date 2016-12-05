@@ -35,13 +35,12 @@ Licensed under the terms of MIT (read LICENSE.txt for details).
 ## Events
 |ID  |Title           |Priority|
 |----|----------------|--------|
-|0x00|Not an item/end of queue||
-|0x01|CLOCK           |Normal  |
-|0x02|INPUT           |Normal  |
-|0x03|OUTPUT          |Normal  |
-|0xF0|TERMINATE       |Fatal   |
-|0xF1|SEGFAULT        |Fatal   |
-|0xF2|UNKNOWN_ERROR   |Fatal   |
+|0x00|CLOCK           |Normal  |
+|0x01|INPUT           |Normal  |
+|0x02|OUTPUT          |Normal  |
+|0x03|TERMINATE       |Fatal   |
+|0x04|SEGFAULT        |Fatal   |
+|0x05|UNKNOWN_ERROR   |Fatal   |
 
 Fatal priority events run instantly.
 

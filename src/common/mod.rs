@@ -23,7 +23,7 @@ pub const REGISTERS_SIZE: Word = REGISTERS * WORD_SIZE;
 // pub const WORD_SIZE: usize = mem::size_of::<Word>();
 pub const WORD_SIZE: Word = 2;
 pub const STACK_SIZE: Word = 16 * 1024;
-pub const EVENT_HANDLERS: Word = 8;
+pub const EVENT_HANDLERS: Word = 6;
 pub const EVENT_HANDLERS_SIZE: Word = EVENT_HANDLERS * WORD_SIZE;
 pub const EVENT_QUEUE_SIZE: Word = 128;
 

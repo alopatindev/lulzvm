@@ -711,15 +711,15 @@ mod tests {
             let executable = vec![
                 0x00, 0x00,
 
-                PUSH, 0x11,
+                PUSH, 0x22,
                 INT, OUTPUT];
 
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x11], vm.stack());
+            assert_eq!(&[0x22], vm.stack());
             assert!(vm.event_queue().is_empty());
-            assert_eq!(&[0x11], output.as_slice());
+            assert_eq!(&[0x22], output.as_slice());
         }
 
         {

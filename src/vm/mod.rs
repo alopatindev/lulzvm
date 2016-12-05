@@ -2,6 +2,7 @@ use common::*;
 use env_logger;
 use std::fmt;
 use std::io::{Read, Write};
+use std::io::BufReader;
 use std::num::Wrapping;
 
 mod events;
@@ -65,6 +66,8 @@ impl<R: Read, W: Write> VM<R, W> {
                 args.clear();
             }
         }
+
+        self.output.flush().unwrap();
     }
 
     pub fn code(&self) -> DataSlice {
@@ -113,8 +116,8 @@ impl<R: Read, W: Write> VM<R, W> {
                 } else {
                     self.stack_top()
                 };
-                args.push(argument);
                 args.push(event);
+                args.push(argument);
             }
             ADD | SUB | MUL | DIV | MOD => {
                 args.push(self.stack_pop());
@@ -177,10 +180,26 @@ impl<R: Read, W: Write> VM<R, W> {
     }
 
     fn process_event(&mut self, event: u8, argument: u8) {
+        debug!("process_event event={} argument={}",
+               to_hex!(event),
+               to_hex!(argument));
+
         let handler = self.memory.get_event_handler(event);
         if handler == 0 {
             if events::is_critical(event) {
                 self.terminate();
+            } else {
+                match event {
+                    INPUT => {
+                        let mut buffer = [0; 1];
+                        let _ = self.input.read(&mut buffer).unwrap();
+                        self.stack_push(buffer[0]);
+                    }
+                    OUTPUT => {
+                        self.output.write(&[argument]);
+                    }
+                    _ => unimplemented!(),
+                }
             }
         } else {
             let pc = self.get_register(PC);
@@ -242,7 +261,7 @@ impl<R: Read, W: Write> VM<R, W> {
     }
 
     fn set_register(&mut self, id: u8, value: Word) {
-        debug!("set r{:x} := {}", id, to_hex!(value));
+        debug!("set r{:x} = {}", id, to_hex!(value));
         self.registers[id as usize] = value;
     }
 
@@ -260,14 +279,18 @@ impl<R: Read, W: Write> VM<R, W> {
     }
 
     fn stack_pop(&mut self) -> u8 {
-        debug!("stack_pop from [{}]", data_to_hex(self.stack()));
+        debug!("stack_pop {} from [{}]",
+               to_hex!(self.stack_top()),
+               data_to_hex(self.stack()));
         let value = self.stack_top();
         self.increment_register(SP);
         value
     }
 
     fn stack_push(&mut self, value: u8) {
-        debug!("stack_push to [{}]", data_to_hex(self.stack()));
+        debug!("stack_push {} to [{}]",
+               to_hex!(value),
+               data_to_hex(self.stack()));
         self.decrement_register(SP);
         let sp = self.get_register(SP);
         self.memory.put(sp, value);
