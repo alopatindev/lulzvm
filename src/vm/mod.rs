@@ -108,7 +108,7 @@ impl<R: Read, W: Write> VM<R, W> {
 
         let opcode = self.get_register(IR) as u8;
         match opcode {
-            ADD | SUB | MUL | DIV | MOD | SWP | AND | OR => {
+            ADD | SUB | MUL | DIV | MOD | SWP | AND | OR | XOR => {
                 if self.stack().len() >= 2 {
                     args.push(self.stack_pop());
                     args.push(self.stack_pop());
@@ -117,6 +117,12 @@ impl<R: Read, W: Write> VM<R, W> {
             INC | DEC | NOT => {
                 if !self.stack().is_empty() {
                     args.push(self.stack_pop());
+                }
+            }
+            SHL | SHR => {
+                if !self.stack().is_empty() {
+                    args.push(self.stack_pop());
+                    args.push(self.next_code_byte());
                 }
             }
             PUSH => args.push(self.next_code_byte()),
@@ -226,6 +232,9 @@ impl<R: Read, W: Write> VM<R, W> {
                 JG => self.jump_if(args, |x, y| x > y),
                 JLE => self.jump_if(args, |x, y| x <= y),
                 JGE => self.jump_if(args, |x, y| x >= y),
+                SHL => self.apply_arithmetic_bin_operator(args, |x, y| x << y.0 as usize),
+                SHR => self.apply_arithmetic_bin_operator(args, |x, y| x >> y.0 as usize),
+                XOR => self.apply_arithmetic_bin_operator(args, |x, y| x ^ y),
                 AND => self.apply_logical_bin_operator(args, |x, y| x && y),
                 OR => self.apply_logical_bin_operator(args, |x, y| x || y),
                 NOT => {

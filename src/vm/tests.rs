@@ -943,8 +943,111 @@ mod tests {
     #[cfg_attr(rustfmt, rustfmt_skip)]
     #[test]
     fn bitwise() {
-        // TODO
-        assert!(false)
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                PUSH, 0x01,
+                SHL, 0x03];
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert!(vm.data().is_empty());
+            assert_eq!(&[0x08], vm.stack());
+            assert!(vm.event_queue().is_empty());
+            assert!(output.as_slice().is_empty());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                PUSH, 0x80,
+                SHL, 0x01];
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert!(vm.data().is_empty());
+            assert_eq!(&[0x00], vm.stack());
+            assert!(vm.event_queue().is_empty());
+            assert!(output.as_slice().is_empty());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                SHL, 0x01];
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert!(vm.data().is_empty());
+            assert!(vm.stack().is_empty());
+            assert!(vm.event_queue().is_empty());
+            assert_eq!(b"Segfault", output.as_slice());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                PUSH, 0x80,
+                SHR, 0x01];
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert!(vm.data().is_empty());
+            assert_eq!(&[0x40], vm.stack());
+            assert!(vm.event_queue().is_empty());
+            assert!(output.as_slice().is_empty());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                PUSH, 0x00,
+                SHR, 0x01];
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert!(vm.data().is_empty());
+            assert_eq!(&[0x00], vm.stack());
+            assert!(vm.event_queue().is_empty());
+            assert!(output.as_slice().is_empty());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                PUSH, 0x00,
+                PUSH, 0x00,
+                XOR];
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert!(vm.data().is_empty());
+            assert_eq!(&[0x00], vm.stack());
+            assert!(vm.event_queue().is_empty());
+            assert!(output.as_slice().is_empty());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                PUSH, 0x10,
+                PUSH, 0x20,
+                XOR];
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert!(vm.data().is_empty());
+            assert_eq!(&[0x30], vm.stack());
+            assert!(vm.event_queue().is_empty());
+            assert!(output.as_slice().is_empty());
+        }
     }
 
     #[cfg_attr(rustfmt, rustfmt_skip)]
