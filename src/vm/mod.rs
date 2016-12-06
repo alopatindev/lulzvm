@@ -122,6 +122,18 @@ impl<R: Read, W: Write> VM<R, W> {
                 args.push(self.next_code_byte());
                 args.push(self.next_code_byte());
             }
+            JMP => {
+                args.push(self.next_code_byte());
+                args.push(self.next_code_byte());
+            }
+            JE | JNE | JL | JG | JLE | JGE => {
+                if self.stack().len() >= 2 {
+                    args.push(self.stack_top());
+                    args.push(self.stack()[1]);
+                }
+                args.push(self.next_code_byte());
+                args.push(self.next_code_byte());
+            }
             EMIT => {
                 let event = self.next_code_byte();
                 let argument = if self.stack().is_empty() {
@@ -237,6 +249,27 @@ impl<R: Read, W: Write> VM<R, W> {
                     self.process_event(SEGFAULT, 0x0);
                 }
             }
+            JMP => {
+                self.jump(args);
+            }
+            JE => {
+                self.jump_if(args, |x, y| x == y);
+            }
+            JNE => {
+                self.jump_if(args, |x, y| x != y);
+            }
+            JL => {
+                self.jump_if(args, |x, y| x < y);
+            }
+            JG => {
+                self.jump_if(args, |x, y| x > y);
+            }
+            JLE => {
+                self.jump_if(args, |x, y| x <= y);
+            }
+            JGE => {
+                self.jump_if(args, |x, y| x >= y);
+            }
             EMIT => {
                 let event = args[0];
                 let argument = args[1];
@@ -310,6 +343,27 @@ impl<R: Read, W: Write> VM<R, W> {
         };
 
         Some((updated_ptr, with_offset))
+    }
+
+    fn jump_if<F>(&mut self, args: DataSlice, condition: F)
+        where F: Fn(u8, u8) -> bool
+    {
+        if args.len() < 4 {
+            self.process_event(SEGFAULT, 0x00);
+        } else {
+            if condition(args[0], args[1]) {
+                self.jump(&args[2..])
+            }
+        }
+    }
+
+    fn jump(&mut self, args: DataSlice) {
+        if args.len() < 2 {
+            self.process_event(SEGFAULT, 0x00);
+        } else {
+            let new_pc = Memory::read_word_from(&args, 0);
+            self.set_register(PC, new_pc);
+        }
     }
 
     fn process_event(&mut self, event: u8, argument: u8) {

@@ -33,32 +33,16 @@ mod tests {
             let executable = vec![
                 0x00, 0x00,
 
-                PUSH, 0x03,
-                PUSH, 0x04,
-                SWP];
-
-            let (output, vm) = run(&[], executable, 0);
-
-            assert!(vm.data().is_empty());
-            assert_eq!(&[0x03, 0x04], vm.stack());
-            assert!(vm.event_queue().is_empty());
-            assert!(output.is_empty());
-        }
-
-        {
-            let executable = vec![
-                0x00, 0x00,
-
                 PUSH, 0x00,                    // b
                 PUSH, 0x0a,                    // a
                 DEC,                           // a--
                 EMIT, OUTPUT,
-                JNE, 0x06, 0];                 // a != b
+                JNE, 0x06, 0x00];              // a != b
 
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!([0], vm.stack());
+            assert_eq!([0x00, 0x00], vm.stack());
             assert!(vm.event_queue().is_empty());
             assert_eq!(&[9, 8, 7, 6, 5, 4, 3, 2, 1, 0], output.as_slice());
         }
@@ -67,17 +51,18 @@ mod tests {
             let executable = vec![
                 0x00, 0x00,
 
-                PUSH, 0x00,                    // zero
                 PUSH, 0x00,                    // offset
 
                 // label loop
-                                               // d = [data segment + offset]
-                LOAD, PTR_WITH_OFFSET, 0x15, 0x00,
-                EMIT, OUTPUT,                   // print d
-                JE, 0x14, 0x00,                // if d == zero: goto end
-                POP,                           // pop d
+                LOAD, PTR_WITH_OFFSET, 0x16, 0x00,
+                                               // x = [data segment + offset]
+                EMIT, OUTPUT,                  // print x
+                PUSH, 0x00,                    // zero
+                JE, 0x14, 0x00,                // if x == zero: goto end
+                POP,                           // pop zero
+                POP,                           // pop x
                 INC,                           // offset++
-                JMP, 0x06, 0x00,               // goto loop
+                JMP, 0x04, 0x00,               // goto loop
 
                 // label end
                 NOP,                           // optional
@@ -86,9 +71,9 @@ mod tests {
             let (output, vm) = run(&[], executable, 4);
 
             assert_eq!(&[0x03, 0x02, 0x01, 0x00], vm.data());
-            assert_eq!(&[0x00], vm.stack());
+            assert_eq!(&[0x00, 0x00, 0x03], vm.stack());
             assert!(vm.event_queue().is_empty());
-            assert_eq!(&[0x03, 0x02, 0x01], output.as_slice());
+            assert_eq!(&[0x03, 0x02, 0x01, 0x00], output.as_slice());
         }
 
         {
@@ -98,8 +83,8 @@ mod tests {
                 PUSH, 0x00,                    // b
 
                 // label loop
-                EMIT, INPUT,                    // a
-                EMIT, OUTPUT,                   // print a
+                EMIT, INPUT,                   // a
+                EMIT, OUTPUT,                  // print a
                 JE, 0x0f, 0x00,                // if a == b: goto end
                 POP,                           // remove a
                 JMP, 0x04, 0x00                // goto loop
@@ -121,42 +106,14 @@ mod tests {
             let executable = vec![
                 0x00, 0x00,
 
-                PUSH, 0x00,                    // const zero
-                                               // loop:
-                EMIT, INPUT,                    //   x = read
-                CALL, PTR, 0x14, 0x00,         //   x = f(x)
-                EMIT, OUTPUT,                   //   print x
-                JE, 0x12, 0x00,                // if x == zero: goto exit
-                POP,                           // pop x
-                JMP, 0x02, 0x00,               // goto loop
-                EMIT, TERMINATE,                // exit:
-
-                                               // f:
-                PUSH, 0x02,
-                MUL,                           // a = a * 2
-                RET];
-
-            let input = [0x03, 0x02, 0x01, 0x00];
-            let (output, vm) = run(&input, executable, 0);
-
-            assert!(vm.data().is_empty());
-            assert_eq!(&[0x00, 0x00], vm.stack());
-            assert!(vm.event_queue().is_empty());
-            assert_eq!(&[0x06, 0x04, 0x02, 0x00], output.as_slice());
-        }
-
-        {
-            let executable = vec![
-                0x00, 0x00,
-
                 PUSH, 0x00,                    // i
                                                // loop:
                 LOAD, PTR, 0x15, 0x00,         // x
                 JLE, 0x15, 0x00,               // if x <= i goto: end
                 DEC,
                 STORE, PTR, 0x15, 0x00,        // x
-                POP,
-                INC,
+                POP,                           // pop x
+                INC,                           // i++
                 JMP, 0x04, 0x00,               // goto loop
                                                // end:
                 0x05];                         // x
@@ -164,7 +121,7 @@ mod tests {
             let (output, vm) = run(&[], executable, 1);
 
             assert_eq!(&[0x02], vm.data());
-            assert_eq!(&[0x03], vm.stack());
+            assert_eq!(&[0x02, 0x03], vm.stack());
             assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
@@ -189,6 +146,34 @@ mod tests {
             assert_eq!(&[0x02, 0x03], vm.stack());
             assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                PUSH, 0x00,                    // const zero
+                                               // loop:
+                EMIT, INPUT,                   //   x = read
+                CALL, PTR, 0x14, 0x00,         //   x = f(x)
+                EMIT, OUTPUT,                  //   print x
+                JE, 0x12, 0x00,                // if x == zero: goto exit
+                POP,                           // pop x
+                JMP, 0x02, 0x00,               // goto loop
+                EMIT, TERMINATE,               // exit:
+
+                                               // f:
+                PUSH, 0x02,
+                MUL,                           // a = a * 2
+                RET];
+
+            let input = [0x03, 0x02, 0x01, 0x00];
+            let (output, vm) = run(&input, executable, 0);
+
+            assert!(vm.data().is_empty());
+            assert_eq!(&[0x00, 0x00], vm.stack());
+            assert!(vm.event_queue().is_empty());
+            assert_eq!(&[0x06, 0x04, 0x02, 0x00], output.as_slice());
         }
     }
 
@@ -830,8 +815,97 @@ mod tests {
     #[cfg_attr(rustfmt, rustfmt_skip)]
     #[test]
     fn jumps() {
-        // TODO
-        assert!(false)
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                JMP, 0x55, 0x55];
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert_eq!(0x5555, vm.get_register(PC));
+
+            assert!(vm.data().is_empty());
+            assert!(vm.stack().is_empty());
+            assert!(vm.event_queue().is_empty());
+            assert!(output.as_slice().is_empty());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                PUSH, 0x00,
+                PUSH, 0x00,
+
+                JE, 0x55, 0x55];
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert_eq!(0x5555, vm.get_register(PC));
+
+            assert!(vm.data().is_empty());
+            assert_eq!(&[0x00, 0x00], vm.stack());
+            assert!(vm.event_queue().is_empty());
+            assert!(output.as_slice().is_empty());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                PUSH, 0x00,
+                PUSH, 0x01,
+
+                JE, 0x55, 0x55];
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert_eq!(0x09, vm.get_register(PC));
+
+            assert!(vm.data().is_empty());
+            assert_eq!(&[0x01, 0x00], vm.stack());
+            assert!(vm.event_queue().is_empty());
+            assert!(output.as_slice().is_empty());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                PUSH, 0x00,
+                PUSH, 0x01,
+
+                JG, 0x55, 0x55];
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert_eq!(0x5555, vm.get_register(PC));
+
+            assert!(vm.data().is_empty());
+            assert_eq!(&[0x01, 0x00], vm.stack());
+            assert!(vm.event_queue().is_empty());
+            assert!(output.as_slice().is_empty());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                PUSH, 0x01,
+                PUSH, 0x00,
+
+                JG, 0x55, 0x55];
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert_eq!(0x09, vm.get_register(PC));
+
+            assert!(vm.data().is_empty());
+            assert_eq!(&[0x00, 0x01], vm.stack());
+            assert!(vm.event_queue().is_empty());
+            assert!(output.as_slice().is_empty());
+        }
     }
 
     #[cfg_attr(rustfmt, rustfmt_skip)]
