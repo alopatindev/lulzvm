@@ -91,6 +91,10 @@ impl<R: Read, W: Write> VM<R, W> {
         self.terminated = true;
     }
 
+    fn terminate_with_segfault(&mut self) {
+        self.process_event(SEGFAULT, 0x00);
+    }
+
     fn fetch(&mut self) -> &mut Self {
         debug!("fetch {:?}", self);
 
@@ -154,132 +158,86 @@ impl<R: Read, W: Write> VM<R, W> {
         debug!("execute {:?}", self);
 
         let opcode = self.get_register(IR) as u8;
-        match opcode {
-            NOP => (),
-            ADD => {
-                if args.is_empty() {
-                    self.process_event(SEGFAULT, 0x00);
-                } else {
-                    let value = Wrapping(args[0]) + Wrapping(args[1]);
-                    self.stack_push(value.0);
+        let need_args = ![NOP, POP].contains(&opcode);
+
+        if need_args && args.is_empty() {
+            self.terminate_with_segfault();
+        } else {
+            match opcode {
+                NOP => (),
+                ADD => self.apply_binary_operator(args, |x, y| x + y),
+                SUB => self.apply_binary_operator(args, |x, y| x - y),
+                MUL => self.apply_binary_operator(args, |x, y| x * y),
+                DIV => {
+                    if args[1] == 0 {
+                        self.process_event(UNKNOWN_ERROR, 0x00);
+                    } else {
+                        self.apply_binary_operator(args, |x, y| x / y);
+                    }
                 }
-            }
-            SUB => {
-                if args.is_empty() {
-                    self.process_event(SEGFAULT, 0x00);
-                } else {
-                    let value = Wrapping(args[0]) - Wrapping(args[1]);
-                    self.stack_push(value.0);
+                MOD => {
+                    if args[1] == 0 {
+                        self.process_event(UNKNOWN_ERROR, 0x00);
+                    } else {
+                        self.apply_binary_operator(args, |x, y| x % y);
+                    }
                 }
-            }
-            MUL => {
-                if args.is_empty() {
-                    self.process_event(SEGFAULT, 0x00);
-                } else {
-                    let value = Wrapping(args[0]) * Wrapping(args[1]);
-                    self.stack_push(value.0);
-                }
-            }
-            DIV => {
-                if args.is_empty() {
-                    self.process_event(SEGFAULT, 0x00);
-                } else if args[1] == 0 {
-                    self.process_event(UNKNOWN_ERROR, 0x00);
-                } else {
-                    let value = Wrapping(args[0]) / Wrapping(args[1]);
-                    self.stack_push(value.0);
-                }
-            }
-            MOD => {
-                if args.is_empty() {
-                    self.process_event(SEGFAULT, 0x00);
-                } else if args[1] == 0 {
-                    self.process_event(UNKNOWN_ERROR, 0x00);
-                } else {
-                    let value = Wrapping(args[0]) % Wrapping(args[1]);
-                    self.stack_push(value.0);
-                }
-            }
-            INC => {
-                if args.is_empty() {
-                    self.process_event(SEGFAULT, 0x00);
-                } else {
+                INC => {
                     let value = Wrapping(args[0]) + Wrapping(1);
                     self.stack_push(value.0);
                 }
-            }
-            DEC => {
-                if args.is_empty() {
-                    self.process_event(SEGFAULT, 0x00);
-                } else {
+                DEC => {
                     let value = Wrapping(args[0]) - Wrapping(1);
                     self.stack_push(value.0);
                 }
-            }
-            PUSH => {
-                if self.get_register(SP) <= self.memory.stack_begin {
-                    self.process_event(SEGFAULT, 0x00);
-                } else {
-                    self.stack_push(args[0]);
+                PUSH => {
+                    if self.get_register(SP) <= self.memory.stack_begin {
+                        self.terminate_with_segfault();
+                    } else {
+                        self.stack_push(args[0]);
+                    }
                 }
-            }
-            POP => {
-                if self.stack().is_empty() {
-                    self.process_event(SEGFAULT, 0x00);
-                } else {
-                    let _ = self.stack_pop();
+                POP => {
+                    if self.stack().is_empty() {
+                        self.terminate_with_segfault();
+                    } else {
+                        let _ = self.stack_pop();
+                    }
                 }
-            }
-            SWP => {
-                if args.len() < 2 {
-                    self.process_event(SEGFAULT, 0x00);
-                } else {
+                SWP => {
                     self.stack_push(args[0]);
                     self.stack_push(args[1]);
                 }
-            }
-            LOAD => {
-                match self.load_data(args) {
-                    Some(value) => self.stack_push(value),
-                    None => self.process_event(SEGFAULT, 0x00),
+                LOAD => {
+                    match self.load_data(args) {
+                        Some(value) => self.stack_push(value),
+                        None => self.terminate_with_segfault(),
+                    }
                 }
-            }
-            STORE => {
-                if self.store_data(args).is_err() {
-                    self.process_event(SEGFAULT, 0x0);
+                STORE => {
+                    if self.store_data(args).is_err() {
+                        self.terminate_with_segfault();
+                    }
                 }
-            }
-            JMP => {
-                self.jump(args);
-            }
-            JE => {
-                self.jump_if(args, |x, y| x == y);
-            }
-            JNE => {
-                self.jump_if(args, |x, y| x != y);
-            }
-            JL => {
-                self.jump_if(args, |x, y| x < y);
-            }
-            JG => {
-                self.jump_if(args, |x, y| x > y);
-            }
-            JLE => {
-                self.jump_if(args, |x, y| x <= y);
-            }
-            JGE => {
-                self.jump_if(args, |x, y| x >= y);
-            }
-            EMIT => {
-                let event = args[0];
-                let argument = args[1];
-                if events::is_critical(event) {
-                    self.process_event(event, argument);
-                } else {
-                    self.event_queue_push(event, argument);
+                JMP => self.jump(args),
+                JE => self.jump_if(args, |x, y| x == y),
+                JNE => self.jump_if(args, |x, y| x != y),
+                JL => self.jump_if(args, |x, y| x < y),
+                JG => self.jump_if(args, |x, y| x > y),
+                JLE => self.jump_if(args, |x, y| x <= y),
+                JGE => self.jump_if(args, |x, y| x >= y),
+                EMIT => {
+                    // compiler won't let args be empty
+                    let event = args[0];
+                    let argument = args[1];
+                    if events::is_critical(event) {
+                        self.process_event(event, argument);
+                    } else {
+                        self.event_queue_push(event, argument);
+                    }
                 }
+                _ => unimplemented!(),
             }
-            _ => unimplemented!(),
         }
 
         self
@@ -345,11 +303,18 @@ impl<R: Read, W: Write> VM<R, W> {
         Some((updated_ptr, with_offset))
     }
 
+    fn apply_binary_operator<F>(&mut self, args: DataSlice, operator: F)
+        where F: Fn(Wrapping<u8>, Wrapping<u8>) -> Wrapping<u8>
+    {
+        let value = operator(Wrapping(args[0]), Wrapping(args[1]));
+        self.stack_push(value.0);
+    }
+
     fn jump_if<F>(&mut self, args: DataSlice, condition: F)
         where F: Fn(u8, u8) -> bool
     {
         if args.len() < 4 {
-            self.process_event(SEGFAULT, 0x00);
+            self.terminate_with_segfault();
         } else {
             if condition(args[0], args[1]) {
                 self.jump(&args[2..])
@@ -358,12 +323,8 @@ impl<R: Read, W: Write> VM<R, W> {
     }
 
     fn jump(&mut self, args: DataSlice) {
-        if args.len() < 2 {
-            self.process_event(SEGFAULT, 0x00);
-        } else {
-            let new_pc = Memory::read_word_from(&args, 0);
-            self.set_register(PC, new_pc);
-        }
+        let new_pc = Memory::read_word_from(&args, 0);
+        self.set_register(PC, new_pc);
     }
 
     fn process_event(&mut self, event: u8, argument: u8) {

@@ -576,6 +576,21 @@ mod tests {
             let executable = vec![
                 0x00, 0x00,
 
+                PUSH, 0x03,                    // not enough operands
+                ADD];
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert!(vm.data().is_empty());
+            assert_eq!(&[0x03], vm.stack());
+            assert!(vm.event_queue().is_empty());
+            assert_eq!(b"Segfault", output.as_slice());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
                 PUSH, 0x02,
                 PUSH, 0x03,
                 SUB];
