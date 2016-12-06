@@ -815,7 +815,7 @@ mod tests {
 
     #[cfg_attr(rustfmt, rustfmt_skip)]
     #[test]
-    fn logical() {
+    fn bitwise() {
         {
             let executable = vec![
                 0x00, 0x00,
@@ -904,7 +904,7 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x01], vm.stack());
+            assert_eq!(&[0x02], vm.stack());
             assert!(vm.event_queue().is_empty());
             assert!(output.as_slice().is_empty());
         }
@@ -938,11 +938,7 @@ mod tests {
             assert!(vm.event_queue().is_empty());
             assert!(output.as_slice().is_empty());
         }
-    }
 
-    #[cfg_attr(rustfmt, rustfmt_skip)]
-    #[test]
-    fn bitwise() {
         {
             let executable = vec![
                 0x00, 0x00,

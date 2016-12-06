@@ -171,21 +171,21 @@ impl<R: Read, W: Write> VM<R, W> {
         } else {
             match opcode {
                 NOP => (),
-                ADD => self.apply_arithmetic_bin_operator(args, |x, y| x + y),
-                SUB => self.apply_arithmetic_bin_operator(args, |x, y| x - y),
-                MUL => self.apply_arithmetic_bin_operator(args, |x, y| x * y),
+                ADD => self.apply_bin_operator(args, |x, y| x + y),
+                SUB => self.apply_bin_operator(args, |x, y| x - y),
+                MUL => self.apply_bin_operator(args, |x, y| x * y),
                 DIV => {
                     if args[1] == 0 {
                         self.process_event(UNKNOWN_ERROR, 0x00);
                     } else {
-                        self.apply_arithmetic_bin_operator(args, |x, y| x / y);
+                        self.apply_bin_operator(args, |x, y| x / y);
                     }
                 }
                 MOD => {
                     if args[1] == 0 {
                         self.process_event(UNKNOWN_ERROR, 0x00);
                     } else {
-                        self.apply_arithmetic_bin_operator(args, |x, y| x % y);
+                        self.apply_bin_operator(args, |x, y| x % y);
                     }
                 }
                 INC => {
@@ -195,6 +195,15 @@ impl<R: Read, W: Write> VM<R, W> {
                 DEC => {
                     let value = Wrapping(args[0]) - Wrapping(1);
                     self.stack_push(value.0);
+                }
+                SHL => self.apply_bin_operator(args, |x, y| x << y.0 as usize),
+                SHR => self.apply_bin_operator(args, |x, y| x >> y.0 as usize),
+                XOR => self.apply_bin_operator(args, |x, y| x ^ y),
+                AND => self.apply_bin_operator(args, |x, y| x & y),
+                OR => self.apply_bin_operator(args, |x, y| x | y),
+                NOT => {
+                    let value = args[0] == 0;
+                    self.stack_push(value as u8);
                 }
                 PUSH => {
                     if self.get_register(SP) <= self.memory.stack_begin {
@@ -232,15 +241,6 @@ impl<R: Read, W: Write> VM<R, W> {
                 JG => self.jump_if(args, |x, y| x > y),
                 JLE => self.jump_if(args, |x, y| x <= y),
                 JGE => self.jump_if(args, |x, y| x >= y),
-                SHL => self.apply_arithmetic_bin_operator(args, |x, y| x << y.0 as usize),
-                SHR => self.apply_arithmetic_bin_operator(args, |x, y| x >> y.0 as usize),
-                XOR => self.apply_arithmetic_bin_operator(args, |x, y| x ^ y),
-                AND => self.apply_logical_bin_operator(args, |x, y| x && y),
-                OR => self.apply_logical_bin_operator(args, |x, y| x || y),
-                NOT => {
-                    let value = args[0] == 0;
-                    self.stack_push(value as u8);
-                }
                 EMIT => {
                     // compiler won't let args be empty
                     let event = args[0];
@@ -318,20 +318,11 @@ impl<R: Read, W: Write> VM<R, W> {
         Some((updated_ptr, with_offset))
     }
 
-    fn apply_arithmetic_bin_operator<F>(&mut self, args: DataSlice, op: F)
+    fn apply_bin_operator<F>(&mut self, args: DataSlice, op: F)
         where F: Fn(Wrapping<u8>, Wrapping<u8>) -> Wrapping<u8>
     {
         let value = op(Wrapping(args[0]), Wrapping(args[1]));
         self.stack_push(value.0);
-    }
-
-    fn apply_logical_bin_operator<F>(&mut self, args: DataSlice, op: F)
-        where F: Fn(bool, bool) -> bool
-    {
-        let x = args[0] != 0;
-        let y = args[1] != 0;
-        let value = op(x, y);
-        self.stack_push(value as u8);
     }
 
     fn jump_if<F>(&mut self, args: DataSlice, condition: F)
