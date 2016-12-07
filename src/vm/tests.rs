@@ -161,11 +161,11 @@ mod tests {
                 PUSH, 0x00,                    // const zero
                                                // loop:
                 EMIT, INPUT,                   //   x = read
-                CALL, PTR, 0x15, 0x00,         //   x = f(x)
+                CALL, 0x14, 0x00,              //   x = f(x)
                 EMIT, OUTPUT,                  //   print x
-                JE, 0x13, 0x00,                // if x == zero: goto exit
+                JE, 0x12, 0x00,                // if x == zero: goto exit
                 POP,                           // pop x
-                JMP, 0x02, 0x00,               // goto loop
+                JMP, 0x04, 0x00,               // goto loop
                 EMIT, TERMINATE,               // exit:
 
                                                // f:
