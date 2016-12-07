@@ -1,14 +1,5 @@
 use byteorder::LittleEndian;
 
-macro_rules! to_hex {
-   ($data:expr, Word) => {
-       format!("0x{:04x}", $data)
-   };
-   ($data:expr) => {
-       format!("0x{:02x}", $data)
-   };
-}
-
 pub type Word = u16;
 pub type Words = Vec<Word>;
 pub type WordsSlice<'a> = &'a [Word];
@@ -39,10 +30,3 @@ pub const CODE_SIZE_OFFSET: Word = 0x0;
 pub const CODE_OFFSET: Word = CODE_SIZE_OFFSET + WORD_SIZE;
 
 pub type Registers = [Word; REGISTERS as usize];
-
-pub fn data_to_hex(data: DataSlice) -> String {
-    data.iter()
-        .map(|i| to_hex!(i))
-        .collect::<Vec<String>>()
-        .join(" ")
-}

@@ -1,5 +1,5 @@
 use byteorder::ByteOrder;
-use common::*;
+use config::*;
 use std::cmp;
 
 pub struct Memory {

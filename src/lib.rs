@@ -8,6 +8,8 @@ extern crate env_logger;
 extern crate more_asserts;
 
 #[macro_use]
-pub mod common;
+pub mod utils;
+
+pub mod config;
 
 pub mod vm;

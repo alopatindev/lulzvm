@@ -1,14 +1,17 @@
-use common::*;
-use env_logger;
+use config::*;
 use std::fmt;
 use std::io::{Read, Write, Error, ErrorKind, Result};
 use std::num::Wrapping;
+use utils;
 
-mod events;
-mod memory;
-mod modes;
-mod opcodes;
-mod registers;
+#[cfg(test)]
+pub mod tests;
+
+pub mod events;
+pub mod memory;
+pub mod modes;
+pub mod opcodes;
+pub mod registers;
 
 use self::events::*;
 use self::memory::*;
@@ -16,11 +19,9 @@ use self::modes::*;
 use self::opcodes::*;
 use self::registers::*;
 
-include!("tests.rs");
-
 pub struct VM<R: Read, W: Write> {
-    input: R,
-    output: W,
+    pub input: R,
+    pub output: W,
 
     registers: Registers,
     memory: Memory,
@@ -479,7 +480,7 @@ impl<R: Read, W: Write> VM<R, W> {
     fn locals_stack_push(&mut self, value: u8) {
         debug!("locals_stack_push {} to [{}]",
                to_hex!(value),
-               data_to_hex(self.locals_stack()));
+               utils::data_to_hex(self.locals_stack()));
         self.decrement_register(SP);
         let sp = self.get_register(SP);
         self.memory.put(sp, value);
@@ -488,7 +489,7 @@ impl<R: Read, W: Write> VM<R, W> {
     fn locals_stack_pop(&mut self) -> u8 {
         debug!("locals_stack_pop {} from [{}]",
                to_hex!(self.locals_stack_top()),
-               data_to_hex(self.locals_stack()));
+               utils::data_to_hex(self.locals_stack()));
         let value = self.locals_stack_top();
         self.increment_register(SP);
         value
@@ -502,7 +503,7 @@ impl<R: Read, W: Write> VM<R, W> {
     fn return_stack_push(&mut self, address: Word) {
         debug!("return_stack_push {} to [{}]",
                to_hex!(address, Word),
-               data_to_hex(self.return_stack()));
+               utils::data_to_hex(self.return_stack()));
 
         self.decrement_register_by(RP, WORD_SIZE);
         let rp = self.get_register(RP);
@@ -512,7 +513,7 @@ impl<R: Read, W: Write> VM<R, W> {
     fn return_stack_pop(&mut self) -> Word {
         debug!("return_stack_pop {} from [{}]",
                to_hex!(self.return_stack_top(), Word),
-               data_to_hex(self.return_stack()));
+               utils::data_to_hex(self.return_stack()));
 
         let address = self.return_stack_top();
         self.increment_register_by(RP, WORD_SIZE);
@@ -535,8 +536,8 @@ impl<R: Read, W: Write> fmt::Debug for VM<R, W> {
                to_hex!(self.get_register(RP), Word),
                to_hex!(self.get_register(EP), Word),
                to_hex!(self.get_register(EE), Word),
-               data_to_hex(self.locals_stack()),
-               data_to_hex(self.return_stack()),
-               data_to_hex(self.code()))
+               utils::data_to_hex(self.locals_stack()),
+               utils::data_to_hex(self.return_stack()),
+               utils::data_to_hex(self.code()))
     }
 }
