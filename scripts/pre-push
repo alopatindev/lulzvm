@@ -1,0 +1,7 @@
+#!/bin/sh
+
+set -e
+
+cargo fmt -- --write-mode=diff
+#cargo test --features clippy
+cargo test
