@@ -306,7 +306,7 @@ impl<R: Read, W: Write> VM<R, W> {
 
     fn extract_ptr(&self, args: DataSlice) -> Option<(Word, bool)> {
         let mode = args[0];
-        let ptr = Memory::read_word_from(&args, 1);
+        let ptr = Memory::read_word(&args, 1);
 
         let mut with_offset = false;
 
@@ -348,7 +348,7 @@ impl<R: Read, W: Write> VM<R, W> {
     }
 
     fn jump(&mut self, args: DataSlice) {
-        let new_pc = Memory::read_word_from(&args, 0);
+        let new_pc = Memory::read_word(&args, 0);
         self.set_register(PC, new_pc);
     }
 
@@ -492,7 +492,7 @@ impl<R: Read, W: Write> VM<R, W> {
 
         self.decrement_register_by(RP, WORD_SIZE);
         let rp = self.get_register(RP);
-        self.memory.write_word(rp, address);
+        self.memory.put_word(rp, address);
     }
 
     fn return_stack_pop(&mut self) -> Word {
@@ -507,7 +507,7 @@ impl<R: Read, W: Write> VM<R, W> {
 
     fn return_stack_top(&self) -> Word {
         let rp = self.get_register(RP);
-        self.memory.read_word(rp)
+        self.memory.get_word(rp)
     }
 }
 

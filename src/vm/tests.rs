@@ -1,6 +1,5 @@
 #[cfg(test)]
 mod tests {
-    use byteorder::ByteOrder;
     use std::io::{BufReader, BufWriter};
     use super::*;
 
@@ -1402,7 +1401,7 @@ mod tests {
         let _ = env_logger::init();
 
         let code_size = executable.len() as Word - CODE_OFFSET - data_size;
-        Endian::write_u16(&mut executable, code_size);
+        Memory::write_word(&mut executable, 0, code_size);
 
         let input = BufReader::new(input);
 

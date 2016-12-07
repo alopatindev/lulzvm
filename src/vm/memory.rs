@@ -33,7 +33,7 @@ impl Memory {
                        EVENT_HANDLERS_SIZE + EVENT_QUEUE_SIZE;
         executable.resize(new_size as usize, 0);
 
-        let code_size = Self::read_word_from(&executable, CODE_SIZE_OFFSET);
+        let code_size = Self::read_word(&executable, CODE_SIZE_OFFSET);
         let code_begin = CODE_OFFSET;
         let code_end = CODE_OFFSET + code_size;
 
@@ -110,7 +110,7 @@ impl Memory {
         assert_le!(0, event);
         assert_gt!(EVENT_HANDLERS, event);
         let offset = self.event_handlers_begin + event;
-        self.read_word(offset)
+        self.get_word(offset)
     }
 
     pub fn event_queue(&self, ep: Word, ee: Word) -> DataSlice {
@@ -140,21 +140,21 @@ impl Memory {
         self.raw[index as usize] = value;
     }
 
-    pub fn read_word(&self, index: Word) -> Word {
-        Self::read_word_from(&self.raw, index)
+    pub fn get_word(&self, index: Word) -> Word {
+        Self::read_word(&self.raw, index)
     }
 
-    pub fn write_word(&mut self, index: Word, value: Word) {
-        Self::write_word_to(&mut self.raw, index, value)
+    pub fn put_word(&mut self, index: Word, value: Word) {
+        Self::write_word(&mut self.raw, index, value)
     }
 
-    pub fn read_word_from(data: DataSlice, index: Word) -> Word {
+    pub fn read_word(data: DataSlice, index: Word) -> Word {
         let index = index as usize;
         let slice = &data[index..(index + WORD_SIZE as usize)];
         Endian::read_u16(slice)
     }
 
-    pub fn write_word_to(data: DataMutSlice, index: Word, value: Word) {
+    pub fn write_word(data: DataMutSlice, index: Word, value: Word) {
         let index = index as usize;
         let slice = &mut data[index..(index + WORD_SIZE as usize)];
         Endian::write_u16(slice, value)
