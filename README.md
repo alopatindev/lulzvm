@@ -13,8 +13,12 @@ Licensed under the terms of MIT (read LICENSE.txt for details).
 ### Features and Limitations
 - 16-bit words, little-endian
 - stack-based
-    - one byte per stack item
-    - stack size is 16 KiB
+    - locals stack
+        - 8 bits per stack item
+        - total size is 16 KiB
+    - return address stack
+        - 16 bits per stack item
+        - total size is 2 KiB
 - unsigned integers arithmetic support only
 
 ### Executable Format
@@ -24,7 +28,7 @@ Licensed under the terms of MIT (read LICENSE.txt for details).
 
 ### Memory Layout
 ```
-[ executable ] [ registers ] [ <-- stack ] [ event handlers ] [ <-- event queue ]
+[ executable ] [ registers ] [ <-- locals stack ] [ <-- return address stack ] [ event handlers ] [ <-- event queue ]
 ```
 
 ### Event Queue
@@ -45,10 +49,11 @@ Licensed under the terms of MIT (read LICENSE.txt for details).
 Fatal priority events run instantly.
 
 ### Registers
-|ID  |Title |Description          |
-|----|------|---------------------|
-|0x00|PC    |Program Counter      |
-|0x01|SP    |Stack Pointer        |
-|0x02|IR    |Instruction Register |
-|0x03|EP    |Event Queue Pointer  |
-|0x04|EE    |Event Queue End      |
+|ID  |Title|Description         |
+|----|-----|--------------------|
+|0x00|PC   |Program Counter     |
+|0x01|IR   |Instruction Register|
+|0x02|SP   |Locals Stack Pointer|
+|0x03|RP   |Return Stack Pointer|
+|0x04|EP   |Event Queue Pointer |
+|0x05|EE   |Event Queue End     |

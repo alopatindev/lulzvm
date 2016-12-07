@@ -43,8 +43,13 @@ impl<R: Read, W: Write> VM<R, W> {
     pub fn run(&mut self) {
         self.set_register(PC, CODE_OFFSET as Word);
 
-        let stack_end = self.memory.stack_end;
-        self.set_register(SP, stack_end);
+        self.set_register(IR, NOP as Word);
+
+        let locals_stack_end = self.memory.locals_stack_end;
+        self.set_register(SP, locals_stack_end);
+
+        let return_stack_end = self.memory.return_stack_end;
+        self.set_register(RP, return_stack_end);
 
         let event_queue_end = self.memory.event_queue_end;
         self.set_register(EP, event_queue_end);
@@ -75,9 +80,14 @@ impl<R: Read, W: Write> VM<R, W> {
         self.memory.data()
     }
 
-    pub fn stack(&self) -> DataSlice {
+    pub fn locals_stack(&self) -> DataSlice {
         let sp = self.get_register(SP);
-        self.memory.stack(sp)
+        self.memory.locals_stack(sp)
+    }
+
+    pub fn return_stack(&self) -> DataSlice {
+        let rp = self.get_register(RP);
+        self.memory.return_stack(rp)
     }
 
     pub fn event_queue(&self) -> DataSlice {
@@ -109,19 +119,19 @@ impl<R: Read, W: Write> VM<R, W> {
         let opcode = self.get_register(IR) as u8;
         match opcode {
             ADD | SUB | MUL | DIV | MOD | SWP | AND | OR | XOR => {
-                if self.stack().len() >= 2 {
-                    args.push(self.stack_pop());
-                    args.push(self.stack_pop());
+                if self.locals_stack().len() >= 2 {
+                    args.push(self.locals_stack_pop());
+                    args.push(self.locals_stack_pop());
                 }
             }
             INC | DEC | NOT => {
-                if !self.stack().is_empty() {
-                    args.push(self.stack_pop());
+                if !self.locals_stack().is_empty() {
+                    args.push(self.locals_stack_pop());
                 }
             }
             SHL | SHR => {
-                if !self.stack().is_empty() {
-                    args.push(self.stack_pop());
+                if !self.locals_stack().is_empty() {
+                    args.push(self.locals_stack_pop());
                     args.push(self.next_code_byte());
                 }
             }
@@ -137,19 +147,19 @@ impl<R: Read, W: Write> VM<R, W> {
                 args.push(self.next_code_byte());
             }
             JE | JNE | JL | JG | JLE | JGE => {
-                if self.stack().len() >= 2 {
-                    args.push(self.stack_top());
-                    args.push(self.stack()[1]);
+                if self.locals_stack().len() >= 2 {
+                    args.push(self.locals_stack_top());
+                    args.push(self.locals_stack()[1]);
                 }
                 args.push(self.next_code_byte());
                 args.push(self.next_code_byte());
             }
             EMIT => {
                 let event = self.next_code_byte();
-                let argument = if self.stack().is_empty() {
+                let argument = if self.locals_stack().is_empty() {
                     0x00
                 } else {
-                    self.stack_top()
+                    self.locals_stack_top()
                 };
                 args.push(event);
                 args.push(argument);
@@ -190,11 +200,11 @@ impl<R: Read, W: Write> VM<R, W> {
                 }
                 INC => {
                     let value = Wrapping(args[0]) + Wrapping(1);
-                    self.stack_push(value.0);
+                    self.locals_stack_push(value.0);
                 }
                 DEC => {
                     let value = Wrapping(args[0]) - Wrapping(1);
-                    self.stack_push(value.0);
+                    self.locals_stack_push(value.0);
                 }
                 SHL => self.apply_bin_operator(args, |x, y| x << y.0 as usize),
                 SHR => self.apply_bin_operator(args, |x, y| x >> y.0 as usize),
@@ -203,29 +213,29 @@ impl<R: Read, W: Write> VM<R, W> {
                 OR => self.apply_bin_operator(args, |x, y| x | y),
                 NOT => {
                     let value = args[0] == 0;
-                    self.stack_push(value as u8);
+                    self.locals_stack_push(value as u8);
                 }
                 PUSH => {
-                    if self.get_register(SP) <= self.memory.stack_begin {
+                    if self.get_register(SP) <= self.memory.locals_stack_begin {
                         self.terminate_with_segfault();
                     } else {
-                        self.stack_push(args[0]);
+                        self.locals_stack_push(args[0]);
                     }
                 }
                 POP => {
-                    if self.stack().is_empty() {
+                    if self.locals_stack().is_empty() {
                         self.terminate_with_segfault();
                     } else {
-                        let _ = self.stack_pop();
+                        let _ = self.locals_stack_pop();
                     }
                 }
                 SWP => {
-                    self.stack_push(args[0]);
-                    self.stack_push(args[1]);
+                    self.locals_stack_push(args[0]);
+                    self.locals_stack_push(args[1]);
                 }
                 LOAD => {
                     match self.load_data(args) {
-                        Some(value) => self.stack_push(value),
+                        Some(value) => self.locals_stack_push(value),
                         None => self.terminate_with_segfault(),
                     }
                 }
@@ -269,13 +279,13 @@ impl<R: Read, W: Write> VM<R, W> {
         match self.extract_ptr(args) {
             Some((ptr, with_offset)) => {
                 let value = if with_offset {
-                    if self.stack().len() < 2 {
+                    if self.locals_stack().len() < 2 {
                         return Err(e);
                     } else {
-                        self.stack()[1]
+                        self.locals_stack()[1]
                     }
                 } else {
-                    self.stack()[0]
+                    self.locals_stack()[0]
                 };
 
                 self.memory.put(ptr, value);
@@ -305,10 +315,10 @@ impl<R: Read, W: Write> VM<R, W> {
             PTR_WITH_OFFSET => {
                 with_offset = true;
 
-                if self.stack().is_empty() {
+                if self.locals_stack().is_empty() {
                     return None;
                 } else {
-                    let offset = self.stack_top() as Word;
+                    let offset = self.locals_stack_top() as Word;
                     ptr + offset
                 }
             }
@@ -322,7 +332,7 @@ impl<R: Read, W: Write> VM<R, W> {
         where F: Fn(Wrapping<u8>, Wrapping<u8>) -> Wrapping<u8>
     {
         let value = op(Wrapping(args[0]), Wrapping(args[1]));
-        self.stack_push(value.0);
+        self.locals_stack_push(value.0);
     }
 
     fn jump_if<F>(&mut self, args: DataSlice, condition: F)
@@ -354,7 +364,7 @@ impl<R: Read, W: Write> VM<R, W> {
                 INPUT => {
                     let mut buffer = [0; 1];
                     let _ = self.input.read(&mut buffer).unwrap();
-                    self.stack_push(buffer[0]);
+                    self.locals_stack_push(buffer[0]);
                 }
                 OUTPUT => {
                     self.output.write(&[argument]).unwrap();
@@ -374,8 +384,8 @@ impl<R: Read, W: Write> VM<R, W> {
         } else {
             debug!("handler is set");
             let pc = self.get_register(PC);
-            self.stack_push_word(pc);
-            self.stack_push(argument);
+            // self.return_stack_push(pc);
+            self.locals_stack_push(argument);
             self.set_register(PC, handler);
         }
     }
@@ -444,44 +454,41 @@ impl<R: Read, W: Write> VM<R, W> {
         self.registers[id as usize] -= 1;
     }
 
-    fn stack_top(&self) -> u8 {
+    fn locals_stack_top(&self) -> u8 {
         let sp = self.get_register(SP);
         self.memory.get(sp)
     }
 
-    fn stack_pop(&mut self) -> u8 {
-        debug!("stack_pop {} from [{}]",
-               to_hex!(self.stack_top()),
-               data_to_hex(self.stack()));
-        let value = self.stack_top();
+    fn locals_stack_pop(&mut self) -> u8 {
+        debug!("locals_stack_pop {} from [{}]",
+               to_hex!(self.locals_stack_top()),
+               data_to_hex(self.locals_stack()));
+        let value = self.locals_stack_top();
         self.increment_register(SP);
         value
     }
 
-    fn stack_push(&mut self, value: u8) {
-        debug!("stack_push {} to [{}]",
+    fn locals_stack_push(&mut self, value: u8) {
+        debug!("locals_stack_push {} to [{}]",
                to_hex!(value),
-               data_to_hex(self.stack()));
+               data_to_hex(self.locals_stack()));
         self.decrement_register(SP);
         let sp = self.get_register(SP);
         self.memory.put(sp, value);
-    }
-
-    fn stack_push_word(&mut self, value: Word) {
-        debug!("stack_push_word to [{}]", data_to_hex(self.stack()));
-        unimplemented!()
     }
 }
 
 impl<R: Read, W: Write> fmt::Debug for VM<R, W> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f,
-               "PC={} SP={} IR={} EP={} stack=[{}] code=[{}]",
+               "PC={} IR={} SP={} RP={} EP={} EE={} locals_stack=[{}] code=[{}]",
                to_hex!(self.get_register(PC)),
-               to_hex!(self.get_register(SP)),
                to_hex!(self.get_register(IR)),
+               to_hex!(self.get_register(SP)),
+               to_hex!(self.get_register(RP)),
                to_hex!(self.get_register(EP)),
-               data_to_hex(self.stack()),
+               to_hex!(self.get_register(EE)),
+               data_to_hex(self.locals_stack()),
                data_to_hex(self.code()))
     }
 }

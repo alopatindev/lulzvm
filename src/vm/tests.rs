@@ -12,7 +12,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert!(vm.stack().is_empty());
+            assert!(vm.locals_stack().is_empty());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
@@ -24,7 +25,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert!(vm.stack().is_empty());
+            assert!(vm.locals_stack().is_empty());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
@@ -42,7 +44,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!([0x00, 0x00], vm.stack());
+            assert_eq!([0x00, 0x00], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert_eq!(&[9, 8, 7, 6, 5, 4, 3, 2, 1, 0], output.as_slice());
         }
@@ -71,7 +74,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 4);
 
             assert_eq!(&[0x03, 0x02, 0x01, 0x00], vm.data());
-            assert_eq!(&[0x00, 0x00, 0x03], vm.stack());
+            assert_eq!(&[0x00, 0x00, 0x03], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert_eq!(&[0x03, 0x02, 0x01, 0x00], output.as_slice());
         }
@@ -97,7 +101,8 @@ mod tests {
             let (output, vm) = run(&input, executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x00, 0x00], vm.stack());
+            assert_eq!(&[0x00, 0x00], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert_eq!(&[0x03, 0x02, 0x01, 0x00], output.as_slice());
         }
@@ -121,7 +126,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 1);
 
             assert_eq!(&[0x02], vm.data());
-            assert_eq!(&[0x02, 0x03], vm.stack());
+            assert_eq!(&[0x02, 0x03], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
@@ -143,7 +149,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x02, 0x03], vm.stack());
+            assert_eq!(&[0x02, 0x03], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
@@ -171,7 +178,8 @@ mod tests {
             let (output, vm) = run(&input, executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x00, 0x00], vm.stack());
+            assert_eq!(&[0x00, 0x00], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert_eq!(&[0x06, 0x04, 0x02, 0x00], output.as_slice());
         }
@@ -179,7 +187,7 @@ mod tests {
 
     #[cfg_attr(rustfmt, rustfmt_skip)]
     #[test]
-    fn stack() {
+    fn locals_stack() {
         {
             let executable = vec![
                 0x00, 0x00,
@@ -189,7 +197,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x55], vm.stack());
+            assert_eq!(&[0x55], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
@@ -204,7 +213,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x77, 0x55], vm.stack());
+            assert_eq!(&[0x77, 0x55], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
@@ -219,7 +229,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert!(vm.stack().is_empty());
+            assert!(vm.locals_stack().is_empty());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
@@ -236,7 +247,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert!(vm.stack().is_empty());
+            assert!(vm.locals_stack().is_empty());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
@@ -252,7 +264,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x55], vm.stack());
+            assert_eq!(&[0x55], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
@@ -268,7 +281,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x88, 0x99], vm.stack());
+            assert_eq!(&[0x88, 0x99], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
@@ -277,7 +291,7 @@ mod tests {
     #[cfg_attr(rustfmt, rustfmt_skip)]
     #[ignore]
     #[test]
-    fn stack_damage() {
+    fn locals_stack_damage() {
         {
             let executable = vec![
                 0x00, 0x00,
@@ -287,13 +301,14 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert!(vm.stack().is_empty());
+            assert!(vm.locals_stack().is_empty());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert_eq!(b"Segfault", output.as_slice());
         }
 
         {
-            let executable_size = WORD_SIZE + STACK_SIZE * 2;
+            let executable_size = WORD_SIZE + LOCALS_STACK_SIZE * 2;
             let executable_size = executable_size as usize;
             let mut executable = Vec::with_capacity(executable_size);
             executable.resize(executable_size, 0x00);
@@ -307,13 +322,14 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(STACK_SIZE, vm.stack().len() as Word);
+            assert_eq!(LOCALS_STACK_SIZE, vm.locals_stack().len() as Word);
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
 
         {
-            let executable_size = WORD_SIZE + (STACK_SIZE + 1) * 2;
+            let executable_size = WORD_SIZE + (LOCALS_STACK_SIZE + 1) * 2;
             let executable_size = executable_size as usize;
             let mut executable = Vec::with_capacity(executable_size);
             executable.resize(executable_size, 0x00);
@@ -327,7 +343,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(STACK_SIZE, vm.stack().len() as Word);
+            assert_eq!(LOCALS_STACK_SIZE, vm.locals_stack().len() as Word);
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert_eq!(b"Segfault", output.as_slice());
         }
@@ -341,7 +358,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert!(vm.stack().is_empty());
+            assert!(vm.locals_stack().is_empty());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert_eq!(b"Segfault", output.as_slice());
         }
@@ -385,7 +403,8 @@ mod tests {
         let _ = vm.event_queue_pop();
 
         assert!(vm.data().is_empty());
-        assert!(vm.stack().is_empty());
+        assert!(vm.locals_stack().is_empty());
+        assert!(vm.return_stack().is_empty());
         assert!(vm.event_queue().is_empty());
         assert!(output.is_empty());
     }
@@ -403,7 +422,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 1);
 
             assert_eq!(&[0x7b], vm.data());
-            assert_eq!(&[0x7b], vm.stack());
+            assert_eq!(&[0x7b], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
@@ -419,7 +439,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 2);
 
             assert_eq!(&[0x11, 0x22], vm.data());
-            assert_eq!(&[0x22, 0x01], vm.stack());
+            assert_eq!(&[0x22, 0x01], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
@@ -438,7 +459,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 2);
 
             assert_eq!(&[0x11, 0x22], vm.data());
-            assert_eq!(&[0x22, 0x01, 0x11], vm.stack());
+            assert_eq!(&[0x22, 0x01, 0x11], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
@@ -452,7 +474,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert!(vm.stack().is_empty());
+            assert!(vm.locals_stack().is_empty());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert_eq!(b"Segfault", output.as_slice());
         }
@@ -467,7 +490,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert!(vm.stack().is_empty());
+            assert!(vm.locals_stack().is_empty());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert_eq!(b"Segfault", output.as_slice());
         }
@@ -475,14 +499,15 @@ mod tests {
         {
             let executable = vec![
                 0x00, 0x00,
-                                               // empty stack
+                                               // empty locals_stack
                 LOAD, PTR_WITH_OFFSET, 0x06, 0x00,
                 0x88];
 
             let (output, vm) = run(&[], executable, 1);
 
             assert_eq!(&[0x88], vm.data());
-            assert!(vm.stack().is_empty());
+            assert!(vm.locals_stack().is_empty());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert_eq!(b"Segfault", output.as_slice());
         }
@@ -498,7 +523,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 1);
 
             assert_eq!(&[0x55], vm.data());
-            assert_eq!(&[0x55], vm.stack());
+            assert_eq!(&[0x55], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
@@ -515,7 +541,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 2);
 
             assert_eq!(&[0x00, 0x55], vm.data());
-            assert_eq!(&[0x01, 0x55], vm.stack());
+            assert_eq!(&[0x01, 0x55], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
@@ -530,7 +557,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x55], vm.stack());
+            assert_eq!(&[0x55], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert_eq!(b"Segfault", output.as_slice());
         }
@@ -551,7 +579,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x05], vm.stack());
+            assert_eq!(&[0x05], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
@@ -567,7 +596,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0], vm.stack());
+            assert_eq!(&[0], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
@@ -582,7 +612,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x03], vm.stack());
+            assert_eq!(&[0x03], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert_eq!(b"Segfault", output.as_slice());
         }
@@ -598,7 +629,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x01], vm.stack());
+            assert_eq!(&[0x01], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
@@ -614,7 +646,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0xff], vm.stack());
+            assert_eq!(&[0xff], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
@@ -630,7 +663,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x06], vm.stack());
+            assert_eq!(&[0x06], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
@@ -646,7 +680,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0xf6], vm.stack());
+            assert_eq!(&[0xf6], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
@@ -662,7 +697,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x03], vm.stack());
+            assert_eq!(&[0x03], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
@@ -678,7 +714,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert!(vm.stack().is_empty());
+            assert!(vm.locals_stack().is_empty());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert_eq!(b"Unknown Error", output.as_slice());
         }
@@ -694,7 +731,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x03], vm.stack());
+            assert_eq!(&[0x03], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
@@ -710,7 +748,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert!(vm.stack().is_empty());
+            assert!(vm.locals_stack().is_empty());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert_eq!(b"Unknown Error", output.as_slice());
         }
@@ -725,7 +764,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x06], vm.stack());
+            assert_eq!(&[0x06], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
@@ -740,7 +780,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x00], vm.stack());
+            assert_eq!(&[0x00], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
@@ -755,7 +796,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x04], vm.stack());
+            assert_eq!(&[0x04], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
@@ -770,7 +812,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0xff], vm.stack());
+            assert_eq!(&[0xff], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
@@ -790,7 +833,8 @@ mod tests {
                 let (output, vm) = run(&[], executable, 0);
 
                 assert!(vm.data().is_empty());
-                assert_eq!(&[0x01], vm.stack());
+                assert_eq!(&[0x01], vm.locals_stack());
+                assert!(vm.return_stack().is_empty());
                 assert!(vm.event_queue().is_empty());
                 assert_eq!(b"Segfault", output.as_slice());
             }
@@ -806,7 +850,8 @@ mod tests {
                 let (output, vm) = run(&[], executable, 0);
 
                 assert!(vm.data().is_empty());
-                assert!(vm.stack().is_empty());
+                assert!(vm.locals_stack().is_empty());
+                assert!(vm.return_stack().is_empty());
                 assert!(vm.event_queue().is_empty());
                 assert_eq!(b"Segfault", output.as_slice());
             }
@@ -827,7 +872,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x00], vm.stack());
+            assert_eq!(&[0x00], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.as_slice().is_empty());
         }
@@ -843,7 +889,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x01], vm.stack());
+            assert_eq!(&[0x01], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.as_slice().is_empty());
         }
@@ -858,7 +905,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x00], vm.stack());
+            assert_eq!(&[0x00], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert_eq!(b"Segfault", output.as_slice());
         }
@@ -872,7 +920,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert!(vm.stack().is_empty());
+            assert!(vm.locals_stack().is_empty());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert_eq!(b"Segfault", output.as_slice());
         }
@@ -888,7 +937,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x00], vm.stack());
+            assert_eq!(&[0x00], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.as_slice().is_empty());
         }
@@ -904,7 +954,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x02], vm.stack());
+            assert_eq!(&[0x02], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.as_slice().is_empty());
         }
@@ -919,7 +970,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x00], vm.stack());
+            assert_eq!(&[0x00], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.as_slice().is_empty());
         }
@@ -934,7 +986,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x01], vm.stack());
+            assert_eq!(&[0x01], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.as_slice().is_empty());
         }
@@ -949,7 +1002,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x08], vm.stack());
+            assert_eq!(&[0x08], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.as_slice().is_empty());
         }
@@ -964,7 +1018,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x00], vm.stack());
+            assert_eq!(&[0x00], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.as_slice().is_empty());
         }
@@ -978,7 +1033,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert!(vm.stack().is_empty());
+            assert!(vm.locals_stack().is_empty());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert_eq!(b"Segfault", output.as_slice());
         }
@@ -993,7 +1049,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x40], vm.stack());
+            assert_eq!(&[0x40], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.as_slice().is_empty());
         }
@@ -1008,7 +1065,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x00], vm.stack());
+            assert_eq!(&[0x00], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.as_slice().is_empty());
         }
@@ -1024,7 +1082,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x00], vm.stack());
+            assert_eq!(&[0x00], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.as_slice().is_empty());
         }
@@ -1040,7 +1099,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x30], vm.stack());
+            assert_eq!(&[0x30], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.as_slice().is_empty());
         }
@@ -1060,7 +1120,8 @@ mod tests {
             assert_eq!(0x5555, vm.get_register(PC));
 
             assert!(vm.data().is_empty());
-            assert!(vm.stack().is_empty());
+            assert!(vm.locals_stack().is_empty());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.as_slice().is_empty());
         }
@@ -1079,7 +1140,8 @@ mod tests {
             assert_eq!(0x5555, vm.get_register(PC));
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x00, 0x00], vm.stack());
+            assert_eq!(&[0x00, 0x00], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.as_slice().is_empty());
         }
@@ -1098,7 +1160,8 @@ mod tests {
             assert_eq!(0x09, vm.get_register(PC));
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x01, 0x00], vm.stack());
+            assert_eq!(&[0x01, 0x00], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.as_slice().is_empty());
         }
@@ -1117,7 +1180,8 @@ mod tests {
             assert_eq!(0x5555, vm.get_register(PC));
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x01, 0x00], vm.stack());
+            assert_eq!(&[0x01, 0x00], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.as_slice().is_empty());
         }
@@ -1136,7 +1200,8 @@ mod tests {
             assert_eq!(0x09, vm.get_register(PC));
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x00, 0x01], vm.stack());
+            assert_eq!(&[0x00, 0x01], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.as_slice().is_empty());
         }
@@ -1145,8 +1210,52 @@ mod tests {
     #[cfg_attr(rustfmt, rustfmt_skip)]
     #[test]
     fn functions() {
-        // TODO
-        assert!(false)
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                PUSH, 0x01,
+                CALL, 0x09, 0x00,              // call f
+                EMIT, TERMINATE,
+
+                INC,                           // f:
+                EMIT, OUTPUT,
+                RET];
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert!(vm.data().is_empty());
+            assert_eq!(&[0x02], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
+            assert!(vm.event_queue().is_empty());
+            assert!(output.as_slice().is_empty());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                PUSH, 0x01,                    // main:
+                CALL, 0x09, 0x00,              // call f
+                EMIT, TERMINATE,
+
+                INC,                           // f:
+                EMIT, OUTPUT,
+                CALL, 0x10, 0x00,              // call y
+                RET,
+
+                NOT,                           // y
+                OUTPUT,
+                RET];
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert!(vm.data().is_empty());
+            assert_eq!(&[0x02], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
+            assert!(vm.event_queue().is_empty());
+            assert!(output.as_slice().is_empty());
+        }
     }
 
     #[cfg_attr(rustfmt, rustfmt_skip)]
@@ -1164,7 +1273,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert!(vm.stack().is_empty());
+            assert!(vm.locals_stack().is_empty());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
@@ -1179,7 +1289,8 @@ mod tests {
             let (output, vm) = run(&input, executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x11], vm.stack());
+            assert_eq!(&[0x11], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert!(output.is_empty());
         }
@@ -1194,7 +1305,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x22], vm.stack());
+            assert_eq!(&[0x22], vm.locals_stack());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert_eq!(&[0x22], output.as_slice());
         }
@@ -1210,7 +1322,8 @@ mod tests {
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert!(vm.stack().is_empty());
+            assert!(vm.locals_stack().is_empty());
+            assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
             assert_eq!(b"Unknown Error", output.as_slice());
         }

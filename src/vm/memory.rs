@@ -13,8 +13,11 @@ pub struct Memory {
     pub data_begin: Word,
     pub data_end: Word,
 
-    pub stack_begin: Word,
-    pub stack_end: Word,
+    pub locals_stack_begin: Word,
+    pub locals_stack_end: Word,
+
+    pub return_stack_begin: Word,
+    pub return_stack_end: Word,
 
     pub event_handlers_begin: Word,
     pub event_handlers_end: Word,
@@ -26,22 +29,25 @@ pub struct Memory {
 impl Memory {
     pub fn from_executable(mut executable: Data) -> Memory {
         let executable_size = executable.len() as Word;
-        let new_size = executable_size + REGISTERS_SIZE + STACK_SIZE + EVENT_HANDLERS_SIZE +
-                       EVENT_QUEUE_SIZE;
+        let new_size = executable_size + REGISTERS_SIZE + LOCALS_STACK_SIZE + RETURN_STACK_SIZE +
+                       EVENT_HANDLERS_SIZE + EVENT_QUEUE_SIZE;
         executable.resize(new_size as usize, 0);
 
         let code_size = Self::read_word_from(&executable, CODE_SIZE_OFFSET);
         let code_begin = CODE_OFFSET;
         let code_end = CODE_OFFSET + code_size;
 
-        let stack_begin = executable_size + REGISTERS_SIZE;
-        let stack_end = stack_begin + STACK_SIZE;
+        let locals_stack_begin = executable_size + REGISTERS_SIZE;
+        let locals_stack_end = locals_stack_begin + LOCALS_STACK_SIZE;
+
+        let return_stack_begin = locals_stack_end;
+        let return_stack_end = return_stack_begin + RETURN_STACK_SIZE;
 
         let data_begin = cmp::min(CODE_OFFSET + code_size, executable_size);
         let data_end = executable_size;
 
-        let event_handlers_begin = stack_end;
-        let event_handlers_end = stack_end + EVENT_HANDLERS_SIZE;
+        let event_handlers_begin = return_stack_end;
+        let event_handlers_end = return_stack_end + EVENT_HANDLERS_SIZE;
 
         let event_queue_begin = event_handlers_end;
         let event_queue_end = event_handlers_end + EVENT_QUEUE_SIZE;
@@ -57,8 +63,11 @@ impl Memory {
             data_begin: data_begin,
             data_end: data_end,
 
-            stack_begin: stack_begin,
-            stack_end: stack_end,
+            locals_stack_begin: locals_stack_begin,
+            locals_stack_end: locals_stack_end,
+
+            return_stack_begin: return_stack_begin,
+            return_stack_end: return_stack_end,
 
             event_handlers_begin: event_handlers_begin,
             event_handlers_end: event_handlers_end,
@@ -80,12 +89,20 @@ impl Memory {
         &self.raw[begin..end]
     }
 
-    pub fn stack(&self, sp: Word) -> DataSlice {
-        assert_ge!(sp, self.stack_begin);
-        assert_le!(sp, self.stack_end);
+    pub fn locals_stack(&self, sp: Word) -> DataSlice {
+        assert_ge!(sp, self.locals_stack_begin);
+        assert_le!(sp, self.locals_stack_end);
         let sp = sp as usize;
-        let stack_end = self.stack_end as usize;
-        &self.raw[sp..stack_end]
+        let locals_stack_end = self.locals_stack_end as usize;
+        &self.raw[sp..locals_stack_end]
+    }
+
+    pub fn return_stack(&self, rp: Word) -> DataSlice {
+        assert_ge!(rp, self.return_stack_begin);
+        assert_le!(rp, self.return_stack_end);
+        let rp = rp as usize;
+        let return_stack_end = self.return_stack_end as usize;
+        &self.raw[rp..return_stack_end]
     }
 
     pub fn get_event_handler(&self, event: u8) -> Word {
