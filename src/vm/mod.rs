@@ -151,7 +151,7 @@ impl<R: Read, W: Write> VM<R, W> {
             }
             JE | JNE | JL | JG | JLE | JGE => {
                 if self.locals_stack().len() >= 2 {
-                    args.push(self.locals_stack_top());
+                    args.push(self.locals_stack()[0]);
                     args.push(self.locals_stack()[1]);
                 }
                 args.push(self.next_code_byte());
