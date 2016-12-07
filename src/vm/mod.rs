@@ -106,16 +106,12 @@ impl<R: Read, W: Write> VM<R, W> {
     }
 
     fn fetch(&mut self) -> &mut Self {
-        debug!("fetch {:?}", self);
-
         let opcode = self.next_code_byte() as Word;
         self.set_register(IR, opcode);
         self
     }
 
     fn decode(&mut self, args: &mut Data) -> &mut Self {
-        debug!("decode {:?}", self);
-
         let opcode = self.get_register(IR) as u8;
         match opcode {
             ADD | SUB | MUL | DIV | MOD | SWP | AND | OR | XOR => {
@@ -142,7 +138,14 @@ impl<R: Read, W: Write> VM<R, W> {
                 args.push(self.next_code_byte());
                 args.push(self.next_code_byte());
             }
-            JMP => {
+            RET => {
+                if self.return_stack().len() >= 2 {
+                    args.push(self.return_stack()[0]);
+                    args.push(self.return_stack()[1]);
+                    let _ = self.return_stack_pop();
+                }
+            }
+            JMP | CALL => {
                 args.push(self.next_code_byte());
                 args.push(self.next_code_byte());
             }
@@ -251,6 +254,16 @@ impl<R: Read, W: Write> VM<R, W> {
                 JG => self.jump_if(args, |x, y| x > y),
                 JLE => self.jump_if(args, |x, y| x <= y),
                 JGE => self.jump_if(args, |x, y| x >= y),
+                CALL => {
+                    if self.get_register(RP) <= self.memory.return_stack_begin {
+                        self.terminate_with_segfault();
+                    } else {
+                        let pc = self.get_register(PC);
+                        self.return_stack_push(pc);
+                        self.jump(args);
+                    }
+                }
+                RET => self.jump(args),
                 EMIT => {
                     // compiler won't let args be empty
                     let event = args[0];
@@ -383,7 +396,8 @@ impl<R: Read, W: Write> VM<R, W> {
             }
         } else {
             debug!("handler is set");
-            let pc = self.get_register(PC);
+            // FIXME
+            // let pc = self.get_register(PC);
             // self.return_stack_push(pc);
             self.locals_stack_push(argument);
             self.set_register(PC, handler);
@@ -442,7 +456,7 @@ impl<R: Read, W: Write> VM<R, W> {
     }
 
     fn set_register(&mut self, id: u8, value: Word) {
-        debug!("set r{:x} = {}", id, to_hex!(value));
+        debug!("set r{:x} = {}", id, to_hex!(value, Word));
         self.registers[id as usize] = value;
     }
 
@@ -487,7 +501,7 @@ impl<R: Read, W: Write> VM<R, W> {
 
     fn return_stack_push(&mut self, address: Word) {
         debug!("return_stack_push {} to [{}]",
-               to_hex!(address),
+               to_hex!(address, Word),
                data_to_hex(self.return_stack()));
 
         self.decrement_register_by(RP, WORD_SIZE);
@@ -497,7 +511,7 @@ impl<R: Read, W: Write> VM<R, W> {
 
     fn return_stack_pop(&mut self) -> Word {
         debug!("return_stack_pop {} from [{}]",
-               to_hex!(self.return_stack_top()),
+               to_hex!(self.return_stack_top(), Word),
                data_to_hex(self.return_stack()));
 
         let address = self.return_stack_top();
@@ -514,14 +528,15 @@ impl<R: Read, W: Write> VM<R, W> {
 impl<R: Read, W: Write> fmt::Debug for VM<R, W> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f,
-               "PC={} IR={} SP={} RP={} EP={} EE={} locals_stack=[{}] code=[{}]",
-               to_hex!(self.get_register(PC)),
-               to_hex!(self.get_register(IR)),
-               to_hex!(self.get_register(SP)),
-               to_hex!(self.get_register(RP)),
-               to_hex!(self.get_register(EP)),
-               to_hex!(self.get_register(EE)),
+               "PC={} IR={} SP={} RP={} EP={} EE={} locals_stack=[{}] return_stack=[{}] code=[{}]",
+               to_hex!(self.get_register(PC), Word),
+               to_hex!(self.get_register(IR), Word),
+               to_hex!(self.get_register(SP), Word),
+               to_hex!(self.get_register(RP), Word),
+               to_hex!(self.get_register(EP), Word),
+               to_hex!(self.get_register(EE), Word),
                data_to_hex(self.locals_stack()),
+               data_to_hex(self.return_stack()),
                data_to_hex(self.code()))
     }
 }

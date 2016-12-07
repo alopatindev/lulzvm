@@ -161,9 +161,9 @@ mod tests {
                 PUSH, 0x00,                    // const zero
                                                // loop:
                 EMIT, INPUT,                   //   x = read
-                CALL, PTR, 0x14, 0x00,         //   x = f(x)
+                CALL, PTR, 0x15, 0x00,         //   x = f(x)
                 EMIT, OUTPUT,                  //   print x
-                JE, 0x12, 0x00,                // if x == zero: goto exit
+                JE, 0x13, 0x00,                // if x == zero: goto exit
                 POP,                           // pop x
                 JMP, 0x02, 0x00,               // goto loop
                 EMIT, TERMINATE,               // exit:
@@ -352,6 +352,22 @@ mod tests {
             let executable = vec![
                 0x00, 0x00,
 
+                PUSH, 0x01,
+                JMP, 0x02, 0x00];
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert!(vm.data().is_empty());
+            assert_eq!(LOCALS_STACK_SIZE, vm.locals_stack().len() as Word);
+            assert!(vm.return_stack().is_empty());
+            assert!(vm.event_queue().is_empty());
+            assert_eq!(b"Segfault", output.as_slice());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
                 SWP];
 
             let (output, vm) = run(&[], executable, 0);
@@ -423,11 +439,39 @@ mod tests {
         }
     }
 
+    #[cfg_attr(rustfmt, rustfmt_skip)]
     #[ignore]
     #[test]
     fn return_stack_damage() {
-        // TODO
-        assert!(false)
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                RET];
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert!(vm.data().is_empty());
+            assert!(vm.locals_stack().is_empty());
+            assert!(vm.return_stack().is_empty());
+            assert!(vm.event_queue().is_empty());
+            assert_eq!(b"Segfault", output.as_slice());
+        }
+
+        {
+            let executable = vec![
+                0x00, 0x00,
+
+                CALL, 0x02, 0x00];
+
+            let (output, vm) = run(&[], executable, 0);
+
+            assert!(vm.data().is_empty());
+            assert!(vm.locals_stack().is_empty());
+            assert_eq!(RETURN_STACK_SIZE, vm.return_stack().len() as Word);
+            assert!(vm.event_queue().is_empty());
+            assert_eq!(b"Segfault", output.as_slice());
+        }
     }
 
     #[test]
@@ -1293,7 +1337,7 @@ mod tests {
             assert_eq!(&[0x02], vm.locals_stack());
             assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
-            assert!(output.as_slice().is_empty());
+            assert_eq!(&[0x02], output.as_slice());
         }
 
         {
@@ -1310,16 +1354,16 @@ mod tests {
                 RET,
 
                 NOT,                           // y
-                OUTPUT,
+                EMIT, OUTPUT,
                 RET];
 
             let (output, vm) = run(&[], executable, 0);
 
             assert!(vm.data().is_empty());
-            assert_eq!(&[0x02], vm.locals_stack());
+            assert_eq!(&[0x00], vm.locals_stack());
             assert!(vm.return_stack().is_empty());
             assert!(vm.event_queue().is_empty());
-            assert!(output.as_slice().is_empty());
+            assert_eq!(&[0x02, 0x00], output.as_slice());
         }
     }
 
