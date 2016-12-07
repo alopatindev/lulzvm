@@ -366,6 +366,72 @@ mod tests {
     }
 
     #[test]
+    fn return_stack() {
+        {
+            let executable = vec![0x00, 0x00];
+
+            let (output, mut vm) = run(&[], executable, 0);
+            assert!(vm.return_stack().is_empty());
+
+            vm.return_stack_push(0x1234);
+            assert_eq!(0x1234, vm.return_stack_top());
+
+            vm.return_stack_push(0x5678);
+            assert_eq!(0x5678, vm.return_stack_top());
+
+            assert!(vm.data().is_empty());
+            assert!(vm.locals_stack().is_empty());
+            assert_eq!(&[0x78, 0x56, 0x34, 0x12], vm.return_stack());
+            assert!(vm.event_queue().is_empty());
+            assert!(output.is_empty());
+        }
+
+        {
+            let executable = vec![0x00, 0x00];
+
+            let (output, mut vm) = run(&[], executable, 0);
+
+            vm.return_stack_push(0x1234);
+            vm.return_stack_push(0x5678);
+
+            assert_eq!(0x5678, vm.return_stack_top());
+            assert_eq!(0x5678, vm.return_stack_pop());
+            assert_eq!(0x1234, vm.return_stack_top());
+
+            assert!(vm.data().is_empty());
+            assert!(vm.locals_stack().is_empty());
+            assert_eq!(&[0x34, 0x12], vm.return_stack());
+            assert!(vm.event_queue().is_empty());
+            assert!(output.is_empty());
+        }
+
+        {
+            let executable = vec![0x00, 0x00];
+
+            let (output, mut vm) = run(&[], executable, 0);
+
+            vm.return_stack_push(0x1234);
+            vm.return_stack_push(0x5678);
+
+            assert_eq!(0x5678, vm.return_stack_pop());
+            assert_eq!(0x1234, vm.return_stack_pop());
+
+            assert!(vm.data().is_empty());
+            assert!(vm.locals_stack().is_empty());
+            assert!(vm.return_stack().is_empty());
+            assert!(vm.event_queue().is_empty());
+            assert!(output.is_empty());
+        }
+    }
+
+    #[ignore]
+    #[test]
+    fn return_stack_damage() {
+        // TODO
+        assert!(false)
+    }
+
+    #[test]
     fn event_queue() {
         let executable = vec![0x00, 0x00];
 

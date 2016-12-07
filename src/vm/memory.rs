@@ -144,9 +144,19 @@ impl Memory {
         Self::read_word_from(&self.raw, index)
     }
 
+    pub fn write_word(&mut self, index: Word, value: Word) {
+        Self::write_word_to(&mut self.raw, index, value)
+    }
+
     pub fn read_word_from(data: DataSlice, index: Word) -> Word {
         let index = index as usize;
         let slice = &data[index..(index + WORD_SIZE as usize)];
         Endian::read_u16(slice)
+    }
+
+    pub fn write_word_to(data: DataMutSlice, index: Word, value: Word) {
+        let index = index as usize;
+        let slice = &mut data[index..(index + WORD_SIZE as usize)];
+        Endian::write_u16(slice, value)
     }
 }

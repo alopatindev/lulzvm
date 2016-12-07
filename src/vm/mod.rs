@@ -447,16 +447,28 @@ impl<R: Read, W: Write> VM<R, W> {
     }
 
     fn increment_register(&mut self, id: u8) {
-        self.registers[id as usize] += 1;
+        self.increment_register_by(id, 1);
     }
 
     fn decrement_register(&mut self, id: u8) {
-        self.registers[id as usize] -= 1;
+        self.decrement_register_by(id, 1);
     }
 
-    fn locals_stack_top(&self) -> u8 {
+    fn increment_register_by(&mut self, id: u8, acc: Word) {
+        self.registers[id as usize] += acc;
+    }
+
+    fn decrement_register_by(&mut self, id: u8, acc: Word) {
+        self.registers[id as usize] -= acc;
+    }
+
+    fn locals_stack_push(&mut self, value: u8) {
+        debug!("locals_stack_push {} to [{}]",
+               to_hex!(value),
+               data_to_hex(self.locals_stack()));
+        self.decrement_register(SP);
         let sp = self.get_register(SP);
-        self.memory.get(sp)
+        self.memory.put(sp, value);
     }
 
     fn locals_stack_pop(&mut self) -> u8 {
@@ -468,13 +480,34 @@ impl<R: Read, W: Write> VM<R, W> {
         value
     }
 
-    fn locals_stack_push(&mut self, value: u8) {
-        debug!("locals_stack_push {} to [{}]",
-               to_hex!(value),
-               data_to_hex(self.locals_stack()));
-        self.decrement_register(SP);
+    fn locals_stack_top(&self) -> u8 {
         let sp = self.get_register(SP);
-        self.memory.put(sp, value);
+        self.memory.get(sp)
+    }
+
+    fn return_stack_push(&mut self, address: Word) {
+        debug!("return_stack_push {} to [{}]",
+               to_hex!(address),
+               data_to_hex(self.return_stack()));
+
+        self.decrement_register_by(RP, WORD_SIZE);
+        let rp = self.get_register(RP);
+        self.memory.write_word(rp, address);
+    }
+
+    fn return_stack_pop(&mut self) -> Word {
+        debug!("return_stack_pop {} from [{}]",
+               to_hex!(self.return_stack_top()),
+               data_to_hex(self.return_stack()));
+
+        let address = self.return_stack_top();
+        self.increment_register_by(RP, WORD_SIZE);
+        address
+    }
+
+    fn return_stack_top(&self) -> Word {
+        let rp = self.get_register(RP);
+        self.memory.read_word(rp)
     }
 }
 
