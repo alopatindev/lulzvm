@@ -20,8 +20,8 @@ use self::opcodes::*;
 use self::registers::*;
 
 pub struct VM<R: Read, W: Write> {
-    pub input: R,
-    pub output: W,
+    input: R,
+    output: W,
 
     registers: Registers,
     memory: Memory,
@@ -71,6 +71,10 @@ impl<R: Read, W: Write> VM<R, W> {
         }
 
         self.output.flush().unwrap();
+    }
+
+    pub fn get_output_ref(&self) -> &W {
+        &self.output
     }
 
     pub fn code(&self) -> DataSlice {

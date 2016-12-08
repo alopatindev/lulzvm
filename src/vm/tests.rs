@@ -128,7 +128,8 @@ fn locals_stack_damage() {
     }
 
     {
-        let executable_size = WORD_SIZE + LOCALS_STACK_SIZE * 2;
+        let command_size = 2;
+        let executable_size = WORD_SIZE + LOCALS_STACK_SIZE * command_size;
         let executable_size = executable_size as usize;
         let mut executable = Vec::with_capacity(executable_size);
         executable.resize(executable_size, 0x00);
@@ -136,7 +137,7 @@ fn locals_stack_damage() {
         let mut i = 3;
         while i < executable_size {
             executable[i] = PUSH;
-            i += 2;
+            i += command_size as usize;
         }
 
         let (output, vm) = utils::test_run(&[], executable, 0);
@@ -149,7 +150,8 @@ fn locals_stack_damage() {
     }
 
     {
-        let executable_size = WORD_SIZE + (LOCALS_STACK_SIZE + 1) * 2;
+        let command_size = 2;
+        let executable_size = WORD_SIZE + (LOCALS_STACK_SIZE + 1) * command_size;
         let executable_size = executable_size as usize;
         let mut executable = Vec::with_capacity(executable_size);
         executable.resize(executable_size, 0x00);
@@ -157,7 +159,7 @@ fn locals_stack_damage() {
         let mut i = 3;
         while i < executable_size {
             executable[i] = PUSH;
-            i += 2;
+            i += command_size as usize;
         }
 
         let (output, vm) = utils::test_run(&[], executable, 0);

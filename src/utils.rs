@@ -1,6 +1,6 @@
 use config::*;
 use env_logger;
-use std::io::{BufReader, BufWriter, Write};
+use std::io::{BufReader, BufWriter};
 use vm::VM;
 use vm::memory::Memory;
 
@@ -37,9 +37,8 @@ pub fn test_run(input: DataSlice,
     let mut vm = VM::new(input, output, executable);
     vm.run();
 
-    let output = vm.output
-        .get_mut()
-        .by_ref()
+    let output = vm.get_output_ref()
+        .get_ref()
         .iter()
         .map(|x| *x)
         .collect::<Data>();
