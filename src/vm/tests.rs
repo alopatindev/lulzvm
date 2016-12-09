@@ -1105,7 +1105,7 @@ fn jumps() {
             PUSH, 0x00,
             PUSH, 0x01,
 
-            JG, 0x55, 0x55];
+            JG, 0x55, 0x55];               // if 1 > 0: goto 0x5555
 
         let (output, vm) = utils::test_run(&[], executable, 0);
 
@@ -1193,9 +1193,6 @@ fn functions() {
 #[cfg_attr(rustfmt, rustfmt_skip)]
 #[test]
 fn events() {
-    // TODO: set event handler
-    // TODO: implement default handlers
-
     {
         let executable = vec![
             0x00, 0x00,
@@ -1258,5 +1255,117 @@ fn events() {
         assert!(vm.return_stack().is_empty());
         assert!(vm.event_queue().is_empty());
         assert_eq!(b"Unknown Error", output.as_slice());
+    }
+
+    {
+        let executable = vec![
+            0x00, 0x00,
+
+            SUBSCRIBE, UNKNOWN_ERROR, 0x0f, 0x00,
+            UNSUBSCRIBE, UNKNOWN_ERROR,
+
+            PUSH, 0x00,
+            PUSH, 0x01,
+            DIV,                           // div by zero
+            EMIT, TERMINATE,
+
+                                           // handler:
+            POP,                           // pop default 0 argument
+            PUSH, b'x',
+            EMIT, OUTPUT,
+            POP,
+            RET];
+
+        let (output, vm) = utils::test_run(&[], executable, 0);
+
+        assert!(vm.data().is_empty());
+        assert!(vm.locals_stack().is_empty());
+        assert!(vm.return_stack().is_empty());
+        assert!(vm.event_queue().is_empty());
+        assert_eq!(b"Unknown Error", output.as_slice());
+    }
+
+    {
+        let executable = vec![
+            0x00, 0x00,
+
+            SUBSCRIBE, UNKNOWN_ERROR, 0x11, 0x00,
+
+            PUSH, 0x00,
+            PUSH, 0x01,
+            DIV,                           // div by zero
+            PUSH, b'y',
+            EMIT, OUTPUT,
+            EMIT, TERMINATE,
+
+                                           // handler:
+            POP,                           // pop default 0 argument
+            PUSH, b'x',
+            EMIT, OUTPUT,
+            POP,
+            RET];
+
+        let (output, vm) = utils::test_run(&[], executable, 0);
+
+        assert!(vm.data().is_empty());
+        assert_eq!(&[b'y'], vm.locals_stack());
+        assert!(vm.return_stack().is_empty());
+        assert!(vm.event_queue().is_empty());
+        assert_eq!(b"xy", output.as_slice());
+    }
+
+    {
+        let executable = vec![
+            0x00, 0x00,
+
+            SUBSCRIBE, UNKNOWN_ERROR, 0x12, 0x00,
+
+            PUSH, 0x00,
+            PUSH, 0x01,
+            DIV,                           // div by zero
+
+            PUSH, b'y',                    // unreachable code
+            EMIT, OUTPUT,
+            EMIT, TERMINATE,
+            NOP,                           // optional
+
+                                           // handler:
+            POP,                           // pop default 0 argument
+            PUSH, b'x',
+            EMIT, OUTPUT,
+            POP,
+            EMIT, TERMINATE];              // instantly shut down
+
+        let (output, vm) = utils::test_run(&[], executable, 0);
+
+        assert!(vm.data().is_empty());
+        assert!(vm.locals_stack().is_empty());
+        assert_eq!(&[0x0b, 0x00], vm.return_stack());
+        assert!(vm.event_queue().is_empty());
+        assert_eq!(b"x", output.as_slice());
+    }
+
+    {
+        let executable = vec![
+            0x00, 0x00,
+
+            SUBSCRIBE, OUTPUT, 0x0e, 0x00,
+
+            PUSH, b'a',
+            EMIT, OUTPUT,
+            SWP,
+            POP,
+            EMIT, TERMINATE,
+
+            INC,                           // handler:
+            RET];
+
+        let (output, vm) = utils::test_run(&[], executable, 0);
+
+        assert!(vm.data().is_empty());
+        assert_eq!(&[b'b'], vm.locals_stack());
+        assert!(vm.return_stack().is_empty());
+        assert!(vm.event_queue().is_empty());
+        assert!(output.as_slice().is_empty());
     }
 }

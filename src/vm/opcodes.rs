@@ -31,4 +31,7 @@ pub const JGE: u8 = 0x36;    // >=
 
 pub const CALL: u8 = 0x41;
 pub const RET: u8 = 0x42;
-pub const EMIT: u8 = 0x43;
+
+pub const EMIT: u8 = 0x50;
+pub const SUBSCRIBE: u8 = 0x51;
+pub const UNSUBSCRIBE: u8 = 0x52;

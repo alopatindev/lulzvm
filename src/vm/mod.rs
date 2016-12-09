@@ -172,6 +172,12 @@ impl<R: Read, W: Write> VM<R, W> {
                 args.push(event);
                 args.push(argument);
             }
+            SUBSCRIBE => {
+                args.push(self.next_code_byte());
+                args.push(self.next_code_byte());
+                args.push(self.next_code_byte());
+            }
+            UNSUBSCRIBE => args.push(self.next_code_byte()),
             _ => unimplemented!(),
         }
 
@@ -279,6 +285,15 @@ impl<R: Read, W: Write> VM<R, W> {
                         self.event_queue_push(event, argument);
                     }
                 }
+                SUBSCRIBE => {
+                    let event = args[0];
+                    let handler_address = Memory::read_word(&args, 1);
+                    self.memory.set_event_handler(event, handler_address);
+                }
+                UNSUBSCRIBE => {
+                    let event = args[0];
+                    self.memory.set_event_handler(event, 0x0000);
+                }
                 _ => unimplemented!(),
             }
         }
@@ -376,7 +391,7 @@ impl<R: Read, W: Write> VM<R, W> {
                to_hex!(argument));
 
         let handler = self.memory.get_event_handler(event);
-        if handler == 0 {
+        if handler == 0x0000 {
             debug!("handler is NOT set");
             match event {
                 INPUT => {
@@ -401,10 +416,10 @@ impl<R: Read, W: Write> VM<R, W> {
             }
         } else {
             debug!("handler is set");
-            // FIXME
-            // let pc = self.get_register(PC);
-            // self.return_stack_push(pc);
-            self.locals_stack_push(argument);
+            let pc = self.get_register(PC);
+            self.return_stack_push(pc);
+
+            self.locals_stack_push(argument); // default is zero
             self.set_register(PC, handler);
         }
     }

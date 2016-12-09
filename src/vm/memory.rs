@@ -109,8 +109,22 @@ impl Memory {
         let event = event as Word;
         assert_le!(0, event);
         assert_gt!(EVENT_HANDLERS, event);
-        let offset = self.event_handlers_begin + event;
+        let offset = self.event_handlers_begin + event * WORD_SIZE;
         self.get_word(offset)
+    }
+
+    pub fn set_event_handler(&mut self, event: u8, handler: Word) {
+        debug!("set event={} handler={}",
+               to_hex!(event),
+               to_hex!(handler, Word));
+
+        let event = event as Word;
+        assert_le!(0, event);
+        assert_gt!(EVENT_HANDLERS, event);
+        assert!(handler == 0x0000 || self.is_in_code(handler));
+
+        let offset = self.event_handlers_begin + event * WORD_SIZE;
+        self.put_word(offset, handler);
     }
 
     pub fn event_queue(&self, ep: Word, ee: Word) -> DataSlice {
