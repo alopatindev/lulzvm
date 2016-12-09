@@ -21,7 +21,7 @@ log = "0.3.6"
 more-asserts = "0.1.0"
 #quickcheck = "0.4"
 #rand = "0.3.14"
-#time = "0.1.35"
+stopwatch = "0.0.7"
 
 [features]
 default = []

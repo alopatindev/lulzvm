@@ -10,6 +10,8 @@ pub type Data = Vec<u8>;
 pub type DataSlice<'a> = &'a [u8];
 pub type DataMutSlice<'a> = &'a mut [u8];
 
+pub const CLOCK_TIMEOUT_MS: i64 = 1_000;
+
 pub const REGISTERS: Word = 6;
 pub const REGISTERS_SIZE: Word = REGISTERS * WORD_SIZE;
 

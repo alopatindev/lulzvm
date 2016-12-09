@@ -1369,3 +1369,34 @@ fn events() {
         assert!(output.as_slice().is_empty());
     }
 }
+
+#[cfg_attr(rustfmt, rustfmt_skip)]
+#[ignore]
+#[test]
+fn async_events() {
+    {
+        let executable = vec![
+            0x00, 0x00,
+
+            SUBSCRIBE, CLOCK, 0x0a, 0x00,
+
+            NOP,
+            JMP, 0x06, 0x00,               // emulate WAIT with endless loop
+
+            EMIT, OUTPUT,                  // handler:
+            PUSH, 0x02,
+            JLE, 0x14, 0x00,               // goto terminate
+            POP,
+            POP,
+            RET,                           // return from handler
+            EMIT, TERMINATE];              // terminate:
+
+        let (output, vm) = utils::test_run(&[], executable, 0);
+
+        assert!(vm.data().is_empty());
+        assert_eq!(&[0x02, 0x02], vm.locals_stack());
+        assert_eq!(WORD_SIZE, vm.return_stack().len() as Word);
+        assert!(vm.event_queue().is_empty());
+        assert_eq!(&[0x00, 0x01, 0x02], output.as_slice());
+    }
+}

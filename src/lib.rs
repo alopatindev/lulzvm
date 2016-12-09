@@ -4,6 +4,8 @@ extern crate byteorder;
 extern crate log;
 extern crate env_logger;
 
+extern crate stopwatch;
+
 #[macro_use]
 extern crate more_asserts;
 

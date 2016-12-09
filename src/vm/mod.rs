@@ -2,6 +2,7 @@ use config::*;
 use std::fmt;
 use std::io::{Read, Write, Error, ErrorKind, Result};
 use std::num::Wrapping;
+use stopwatch::Stopwatch;
 use utils;
 
 #[cfg(test)]
@@ -26,6 +27,9 @@ pub struct VM<R: Read, W: Write> {
     registers: Registers,
     memory: Memory,
     terminated: bool,
+
+    clock: Stopwatch,
+    clock_step: u8,
 }
 
 impl<R: Read, W: Write> VM<R, W> {
@@ -35,9 +39,13 @@ impl<R: Read, W: Write> VM<R, W> {
         VM {
             input: input,
             output: output,
+
             registers: [0; REGISTERS as usize],
             memory: memory,
             terminated: false,
+
+            clock: Stopwatch::new(),
+            clock_step: 0,
         }
     }
 
@@ -56,6 +64,8 @@ impl<R: Read, W: Write> VM<R, W> {
         self.set_register(EP, event_queue_end);
         self.set_register(EE, event_queue_end);
 
+        self.clock.start();
+
         let mut args = vec![];
         while !self.terminated {
             let pc = self.get_register(PC);
@@ -65,11 +75,13 @@ impl<R: Read, W: Write> VM<R, W> {
                 self.fetch()
                     .decode(&mut args)
                     .execute(&args)
-                    .process_events();
+                    .process_events()
+                    .update_clock();
                 args.clear();
             }
         }
 
+        self.clock.stop();
         self.output.flush().unwrap();
     }
 
@@ -424,12 +436,14 @@ impl<R: Read, W: Write> VM<R, W> {
         }
     }
 
-    fn process_events(&mut self) {
+    fn process_events(&mut self) -> &mut Self {
         let nothing_to_process = self.terminated || self.event_queue().is_empty();
         if !nothing_to_process {
             let (event, argument) = self.event_queue_pop();
             self.process_event(event, argument);
         }
+
+        self
     }
 
     fn event_queue_push(&mut self, event: u8, argument: u8) {
@@ -462,6 +476,18 @@ impl<R: Read, W: Write> VM<R, W> {
         }
 
         (event, argument)
+    }
+
+    fn update_clock(&mut self) {
+        if self.clock.elapsed_ms() > CLOCK_TIMEOUT_MS {
+            self.clock.restart();
+
+            let clock_step = self.clock_step;
+            self.event_queue_push(CLOCK, clock_step);
+
+            let new_clock_step = Wrapping(clock_step) + Wrapping(1);
+            self.clock_step = new_clock_step.0;
+        }
     }
 
     fn next_code_byte(&mut self) -> u8 {
