@@ -26,7 +26,9 @@ pub struct VM<R: Read, W: Write> {
 
     registers: Registers,
     memory: Memory,
+
     terminated: bool,
+    waiting: bool,
 
     clock: Stopwatch,
     clock_step: u8,
@@ -42,7 +44,9 @@ impl<R: Read, W: Write> VM<R, W> {
 
             registers: [0; REGISTERS as usize],
             memory: memory,
+
             terminated: false,
+            waiting: false,
 
             clock: Stopwatch::new(),
             clock_step: 0,
@@ -66,18 +70,21 @@ impl<R: Read, W: Write> VM<R, W> {
 
         self.clock.start();
 
-        let mut args = vec![];
         while !self.terminated {
             let pc = self.get_register(PC);
             if !self.memory.is_in_code(pc) && self.event_queue().is_empty() {
                 self.terminate();
             } else {
-                self.fetch()
-                    .decode(&mut args)
-                    .execute(&args)
-                    .process_events()
+                if !self.waiting {
+                    let mut args = vec![];
+                    self.fetch()
+                        .decode(&mut args)
+                        .execute(&args);
+                    args.clear();
+                }
+
+                self.process_events()
                     .update_clock();
-                args.clear();
             }
         }
 
@@ -149,7 +156,7 @@ impl<R: Read, W: Write> VM<R, W> {
                 }
             }
             PUSH => args.push(self.next_code_byte()),
-            POP | NOP => (),
+            POP | NOP | WAIT => (),
             LOAD | STORE => {
                 args.push(self.next_code_byte());
                 args.push(self.next_code_byte());
@@ -196,11 +203,11 @@ impl<R: Read, W: Write> VM<R, W> {
         self
     }
 
-    fn execute(&mut self, args: DataSlice) -> &mut Self {
+    fn execute(&mut self, args: DataSlice) {
         debug!("execute {:?}", self);
 
         let opcode = self.get_register(IR) as u8;
-        let need_args = ![NOP, POP].contains(&opcode);
+        let need_args = ![NOP, POP, WAIT].contains(&opcode);
 
         if need_args && args.is_empty() {
             self.terminate_with_segfault();
@@ -297,6 +304,7 @@ impl<R: Read, W: Write> VM<R, W> {
                         self.event_queue_push(event, argument);
                     }
                 }
+                WAIT => self.waiting = true,
                 SUBSCRIBE => {
                     let event = args[0];
                     let handler_address = Memory::read_word(&args, 1);
@@ -309,8 +317,6 @@ impl<R: Read, W: Write> VM<R, W> {
                 _ => unimplemented!(),
             }
         }
-
-        self
     }
 
     fn load_data(&self, args: DataSlice) -> Option<u8> {
@@ -438,7 +444,12 @@ impl<R: Read, W: Write> VM<R, W> {
 
     fn process_events(&mut self) -> &mut Self {
         let nothing_to_process = self.terminated || self.event_queue().is_empty();
+
         if !nothing_to_process {
+            if self.waiting {
+                self.waiting = false;
+            }
+
             let (event, argument) = self.event_queue_pop();
             self.process_event(event, argument);
         }

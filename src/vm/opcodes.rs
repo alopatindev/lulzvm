@@ -33,5 +33,6 @@ pub const CALL: u8 = 0x41;
 pub const RET: u8 = 0x42;
 
 pub const EMIT: u8 = 0x50;
-pub const SUBSCRIBE: u8 = 0x51;
-pub const UNSUBSCRIBE: u8 = 0x52;
+pub const WAIT: u8 = 0x51;
+pub const SUBSCRIBE: u8 = 0x52;
+pub const UNSUBSCRIBE: u8 = 0x53;

@@ -1380,22 +1380,56 @@ fn async_events() {
 
             SUBSCRIBE, CLOCK, 0x0a, 0x00,
 
-            NOP,
-            JMP, 0x06, 0x00,               // emulate WAIT with endless loop
+                                           // loop:
+            NOP,                           // emulate WAIT
+            JMP, 0x06, 0x00,               // goto loop
 
-            EMIT, OUTPUT,                  // handler:
+                                           // handler:
+            EMIT, OUTPUT,
             PUSH, 0x02,
-            JLE, 0x14, 0x00,               // goto terminate
+            JLE, 0x14, 0x00,               // goto exit
             POP,
             POP,
             RET,                           // return from handler
-            EMIT, TERMINATE];              // terminate:
+
+                                           // exit:
+            EMIT, TERMINATE];
 
         let (output, vm) = utils::test_run(&[], executable, 0);
 
         assert!(vm.data().is_empty());
         assert_eq!(&[0x02, 0x02], vm.locals_stack());
         assert_eq!(WORD_SIZE, vm.return_stack().len() as Word);
+        assert!(vm.event_queue().is_empty());
+        assert_eq!(&[0x00, 0x01, 0x02], output.as_slice());
+    }
+
+    {
+        let executable = vec![
+            0x00, 0x00,
+
+            SUBSCRIBE, CLOCK, 0x12, 0x00,  // clock.subscribe(handler)
+
+            PUSH, 0x02,
+
+                                           // loop:
+            WAIT,                          // wait for a new event
+            JGE, 0x10, 0x00,               // if x >= 2: goto exit
+            POP,                           // pop x
+            JMP, 0x08, 0x00,               // goto loop
+
+                                           // exit:
+            EMIT, TERMINATE,
+
+                                           // handler:
+            EMIT, OUTPUT,                  // x = read()
+            RET];                          // return x
+
+        let (output, vm) = utils::test_run(&[], executable, 0);
+
+        assert!(vm.data().is_empty());
+        assert_eq!(&[0x02, 0x02], vm.locals_stack());
+        assert!(vm.return_stack().is_empty());
         assert!(vm.event_queue().is_empty());
         assert_eq!(&[0x00, 0x01, 0x02], output.as_slice());
     }
