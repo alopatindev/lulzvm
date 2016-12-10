@@ -1256,7 +1256,11 @@ fn events() {
         assert!(vm.event_queue().is_empty());
         assert_eq!(b"Unknown Error", output.as_slice());
     }
+}
 
+#[cfg_attr(rustfmt, rustfmt_skip)]
+#[test]
+fn handle_events() {
     {
         let executable = vec![
             0x00, 0x00,
@@ -1367,74 +1371,5 @@ fn events() {
         assert!(vm.return_stack().is_empty());
         assert!(vm.event_queue().is_empty());
         assert!(output.as_slice().is_empty());
-    }
-}
-
-#[cfg_attr(rustfmt, rustfmt_skip)]
-#[ignore]
-#[test]
-fn alarm_event() {
-    let max_count = 0x05;
-    let expected_output = (0x00..(max_count + 1))
-        .collect::<Vec<u8>>();
-
-    {
-        let executable = vec![
-            0x00, 0x00,
-
-            SUBSCRIBE, CLOCK, 0x0a, 0x00,
-
-                                           // loop:
-            NOP,                           // emulate WAIT
-            JMP, 0x06, 0x00,               // goto loop
-
-                                           // handler:
-            EMIT, OUTPUT,
-            PUSH, max_count,
-            JLE, 0x14, 0x00,               // if x <= max_count: goto exit
-            POP,
-            POP,
-            RET,                           // return from handler
-
-                                           // exit:
-            EMIT, TERMINATE];
-
-        let (output, vm) = utils::test_run(&[], executable, 0);
-
-        assert!(vm.data().is_empty());
-        assert_eq!(&[max_count, max_count], vm.locals_stack());
-        assert_eq!(WORD_SIZE, vm.return_stack().len() as Word);
-        assert!(vm.event_queue().is_empty());
-        assert_eq!(expected_output.as_slice(), output.as_slice());
-    }
-
-    {
-        let executable = vec![
-            0x00, 0x00,
-
-            SUBSCRIBE, CLOCK, 0x12, 0x00,  // clock.subscribe(handler)
-
-            PUSH, max_count,
-
-                                           // loop:
-            WAIT,                          // wait for a new event
-            JGE, 0x10, 0x00,               // if x >= max_count: goto exit
-            POP,                           // pop x
-            JMP, 0x08, 0x00,               // goto loop
-
-                                           // exit:
-            EMIT, TERMINATE,
-
-                                           // handler:
-            EMIT, OUTPUT,                  // x = read()
-            RET];                          // return x
-
-        let (output, vm) = utils::test_run(&[], executable, 0);
-
-        assert!(vm.data().is_empty());
-        assert_eq!(&[max_count, max_count], vm.locals_stack());
-        assert!(vm.return_stack().is_empty());
-        assert!(vm.event_queue().is_empty());
-        assert_eq!(expected_output.as_slice(), output.as_slice());
     }
 }
