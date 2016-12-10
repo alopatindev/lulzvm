@@ -189,6 +189,33 @@ fn simple() {
 }
 
 #[cfg_attr(rustfmt, rustfmt_skip)]
+#[test]
+fn io_event() {
+    {
+        let executable = vec![
+            0x00, 0x00,
+
+            EMIT, INPUT,
+            EMIT, INPUT,
+            EMIT, INPUT,
+
+            EMIT, OUTPUT,
+            EMIT, OUTPUT,
+            EMIT, OUTPUT,
+        ];
+
+        let input = [0x01, 0x02, 0x03];
+        let (output, vm) = utils::test_run(&input, executable, 0);
+
+        assert!(vm.data().is_empty());
+        assert_eq!(&[0x03, 0x02, 0x01], vm.locals_stack());
+        assert!(vm.return_stack().is_empty());
+        assert!(vm.event_queue().is_empty());
+        assert_eq!(&[0x03, 0x03, 0x03], output.as_slice());
+    }
+}
+
+#[cfg_attr(rustfmt, rustfmt_skip)]
 #[ignore]
 #[test]
 fn alarm_event() {
