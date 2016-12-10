@@ -36,7 +36,7 @@ code size | code segment | data segment
 executable | registers | <-- locals stack | <-- return address stack | event handlers | <-- event queue
 ```
 
-## Events
+### Events
 |ID  |Title           |Priority|
 |----|----------------|--------|
 |0x00|CLOCK           |Normal  |

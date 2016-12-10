@@ -218,7 +218,7 @@ fn io_event() {
 #[cfg_attr(rustfmt, rustfmt_skip)]
 #[ignore]
 #[test]
-fn alarm_event() {
+fn clock_event() {
     let max_count = 0x05;
     let expected_output = (0x00..(max_count + 1))
         .collect::<Vec<u8>>();
