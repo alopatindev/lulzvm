@@ -28,12 +28,12 @@ Licensed under the terms of MIT (read LICENSE.txt for details).
 
 ### Executable Format
 ```
-[ code size ] [ code segment ] [ data segment ]
+code size | code segment | data segment
 ```
 
 ### Memory Layout
 ```
-[ executable ] [ registers ] [ <-- locals stack ] [ <-- return address stack ] [ event handlers ] [ <-- event queue ]
+executable | registers | <-- locals stack | <-- return address stack | event handlers | <-- event queue
 ```
 
 ## Events
