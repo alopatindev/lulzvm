@@ -26,7 +26,7 @@ pub const RETURN_STACK_SIZE: Word = 2 * 1024;
 pub const EVENT_HANDLERS: Word = 6;
 pub const EVENT_HANDLERS_SIZE: Word = EVENT_HANDLERS * WORD_SIZE;
 
-pub const EVENT_QUEUE_SIZE: Word = 128;
+pub const EVENT_QUEUE_SIZE: Word = 16;
 
 pub const CODE_SIZE_OFFSET: Word = 0x0;
 pub const CODE_OFFSET: Word = CODE_SIZE_OFFSET + WORD_SIZE;

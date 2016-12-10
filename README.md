@@ -21,6 +21,9 @@ Licensed under the terms of MIT (read LICENSE.txt for details).
     - return address stack
         - 16 bits per stack item
         - total size is 2 KiB
+- event queue
+    - 16 bits per item (event id and data)
+    - total size is 16 bytes
 - unsigned integers arithmetic support only
 
 ### Executable Format
@@ -32,11 +35,6 @@ Licensed under the terms of MIT (read LICENSE.txt for details).
 ```
 [ executable ] [ registers ] [ <-- locals stack ] [ <-- return address stack ] [ event handlers ] [ <-- event queue ]
 ```
-
-### Event Queue
-- 16 bits per item
-    - event id
-    - data
 
 ## Events
 |ID  |Title           |Priority|
