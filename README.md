@@ -1,5 +1,7 @@
 [![Build Status](https://api.travis-ci.org/alopatindev/lulzvm.svg?branch=master)](https://travis-ci.org/alopatindev/lulzvm)
 [![Clippy Linting Result](https://clippy.bashy.io/github/alopatindev/lulzvm/master/badge.svg)](https://clippy.bashy.io/github/alopatindev/lulzvm/master/log)
+[![Coverage Status](https://coveralls.io/repos/github/alopatindev/lulzvm/badge.svg?branch=master)](https://coveralls.io/github/alopatindev/lulzvm?branch=master)
+[![codecov.io](http://codecov.io/github/alopatindev/lulzvm/coverage.svg?branch=master)](https://codecov.io/github/alopatindev/lulzvm?branch=master)
 [![Language: Rust](https://img.shields.io/badge/language-Rust-orange.svg)](http://www.rust-lang.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.txt)
 
