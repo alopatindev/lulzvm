@@ -1,6 +1,6 @@
 use config::*;
 use std::fmt;
-use std::io::{Read, Write, Error, ErrorKind, Result};
+use std::io::{Read, Write};
 use std::num::Wrapping;
 use stopwatch::Stopwatch;
 use utils;
@@ -583,13 +583,15 @@ impl<R: Read, W: Write> VM<R, W> {
 impl<R: Read, W: Write> fmt::Debug for VM<R, W> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f,
-               "PC={} IR={} SP={} RP={} EP={} EE={} locals_stack=[{}] return_stack=[{}] code=[{}]",
+               "PC={} IR={} SP={} RP={} EP={} EE={} waiting={} \
+               locals_stack=[{}] return_stack=[{}] code=[{}]",
                to_hex!(self.get_register(PC), Word),
                to_hex!(self.get_register(IR), Word),
                to_hex!(self.get_register(SP), Word),
                to_hex!(self.get_register(RP), Word),
                to_hex!(self.get_register(EP), Word),
                to_hex!(self.get_register(EE), Word),
+               self.waiting,
                utils::data_to_hex(self.locals_stack()),
                utils::data_to_hex(self.return_stack()),
                utils::data_to_hex(self.code()))
