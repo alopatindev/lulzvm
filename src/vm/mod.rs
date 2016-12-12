@@ -417,6 +417,9 @@ impl<R: Read, W: Write> VM<R, W> {
                 }
                 OUTPUT => {
                     self.output.write(&[argument]).unwrap();
+                    if argument == b'\n' {
+                        self.output.flush().unwrap();
+                    }
                 }
                 SEGFAULT => {
                     self.output.write(b"Segfault").unwrap();
