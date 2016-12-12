@@ -18,6 +18,7 @@ do
     kcov/build/src/kcov \
         --exclude-pattern=/.cargo,/usr/lib \
         --verify \
+        --coveralls-id=${TRAVIS_JOB_ID} \
         "${OUTDIR}" \
         "$i"
 done
