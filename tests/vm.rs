@@ -3,7 +3,6 @@ extern crate lulzvm;
 use lulzvm::config::*;
 use lulzvm::utils;
 use lulzvm::vm::events::*;
-use lulzvm::vm::modes::*;
 use lulzvm::vm::opcodes::*;
 
 #[cfg_attr(rustfmt, rustfmt_skip)]
@@ -60,7 +59,7 @@ fn simple() {
             PUSH, 0x00,                    // offset
 
             // label loop
-            LOAD, PTR_WITH_OFFSET, 0x16, 0x00,
+            LOAD_OFFS, 0x15, 0x00,
                                            // x = [data segment + offset]
             EMIT, OUTPUT,                  // print x
             PUSH, 0x00,                    // zero
@@ -116,10 +115,10 @@ fn simple() {
 
             PUSH, 0x00,                    // i
                                            // loop:
-            LOAD, PTR, 0x15, 0x00,         // x
-            JLE, 0x15, 0x00,               // if x <= i goto: end
+            LOAD, 0x13, 0x00,              // x
+            JLE, 0x13, 0x00,               // if x <= i goto: end
             DEC,
-            STORE, PTR, 0x15, 0x00,        // x
+            STORE, 0x13, 0x00,             // x
             POP,                           // pop x
             INC,                           // i++
             JMP, 0x04, 0x00,               // goto loop

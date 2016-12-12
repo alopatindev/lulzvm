@@ -1,7 +1,6 @@
 use config::*;
 use utils;
 use vm::events::*;
-use vm::modes::*;
 use vm::opcodes::*;
 use vm::registers::*;
 
@@ -348,7 +347,7 @@ fn load_store() {
         let executable = vec![
             0x00, 0x00,
 
-            LOAD, PTR, 0x06, 0x00,
+            LOAD, 0x05, 0x00,
             0x7b];
 
         let (output, vm) = utils::test_run(&[], executable, 1);
@@ -365,7 +364,7 @@ fn load_store() {
             0x00, 0x00,
 
             PUSH, 0x01,
-            LOAD, PTR_WITH_OFFSET, 0x08, 0x00,
+            LOAD_OFFS, 0x07, 0x00,
             0x11, 0x22];
 
         let (output, vm) = utils::test_run(&[], executable, 2);
@@ -382,10 +381,10 @@ fn load_store() {
             0x00, 0x00,
 
             PUSH, 0x00,
-            LOAD, PTR_WITH_OFFSET, 0x0e, 0x00,
+            LOAD_OFFS, 0x0c, 0x00,
             SWP,
             INC,
-            LOAD, PTR_WITH_OFFSET, 0x0e, 0x00,
+            LOAD_OFFS, 0x0c, 0x00,
             0x11, 0x22];
 
         let (output, vm) = utils::test_run(&[], executable, 2);
@@ -401,7 +400,7 @@ fn load_store() {
         let executable = vec![
             0x00, 0x00,
 
-            LOAD, PTR, 0xff, 0xff];        // access violation
+            LOAD, 0xff, 0xff];             // access violation
 
         let (output, vm) = utils::test_run(&[], executable, 0);
 
@@ -416,7 +415,7 @@ fn load_store() {
         let executable = vec![
             0x00, 0x00,
 
-            LOAD, PTR, 0x02, 0x00];        // try to load code segment
+            LOAD, 0x02, 0x00];             // try to load code segment
                                            // as data segment
 
         let (output, vm) = utils::test_run(&[], executable, 0);
@@ -432,7 +431,7 @@ fn load_store() {
         let executable = vec![
             0x00, 0x00,
                                            // empty locals_stack
-            LOAD, PTR_WITH_OFFSET, 0x06, 0x00,
+            LOAD_OFFS, 0x05, 0x00,
             0x88];
 
         let (output, vm) = utils::test_run(&[], executable, 1);
@@ -449,7 +448,7 @@ fn load_store() {
             0x00, 0x00,
 
             PUSH, 0x55,
-            STORE, PTR, 0x08, 0x00,
+            STORE, 0x07, 0x00,
             0x00];
 
         let (output, vm) = utils::test_run(&[], executable, 1);
@@ -467,7 +466,7 @@ fn load_store() {
 
             PUSH, 0x55,
             PUSH, 0x01,
-            STORE, PTR_WITH_OFFSET, 0x0a, 0x00,
+            STORE_OFFS, 0x09, 0x00,
             0x00, 0x88];
 
         let (output, vm) = utils::test_run(&[], executable, 2);
@@ -484,7 +483,7 @@ fn load_store() {
             0x00, 0x00,
 
             PUSH, 0x55,
-            STORE, PTR_WITH_OFFSET, 0x00, 0x00];
+            STORE_OFFS, 0x00, 0x00];
 
         let (output, vm) = utils::test_run(&[], executable, 0);
 

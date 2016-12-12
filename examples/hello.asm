@@ -6,14 +6,14 @@
 
     loop:                            ; address 0x06
         jge exit
-        load [message+offset]        ; load ptr_with_address 0x16 0x00
+        load_offs [message]          ; load_offs 0x15 0x00
         emit output
         pop
         inc
         jmp loop
 
-    exit:                            ; address 0x14
+    exit:                            ; address 0x13
         emit terminate
 
 .data
-    message ascii "Hello World!\n"   ; address 0x16
+    message ascii "Hello World!\n"   ; address 0x15

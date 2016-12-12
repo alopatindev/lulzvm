@@ -10,13 +10,11 @@ pub mod tests;
 
 pub mod events;
 pub mod memory;
-pub mod modes;
 pub mod opcodes;
 pub mod registers;
 
 use self::events::*;
 use self::memory::*;
-use self::modes::*;
 use self::opcodes::*;
 use self::registers::*;
 
@@ -157,10 +155,38 @@ impl<R: Read, W: Write> VM<R, W> {
             }
             PUSH => args.push(self.next_code_byte()),
             POP | NOP | WAIT => (),
-            LOAD | STORE => {
+            LOAD => {
                 args.push(self.next_code_byte());
                 args.push(self.next_code_byte());
-                args.push(self.next_code_byte());
+            }
+            LOAD_OFFS => {
+                if !self.locals_stack().is_empty() {
+                    args.push(self.next_code_byte());
+                    args.push(self.next_code_byte());
+
+                    let offset = self.locals_stack_top();
+                    args.push(offset);
+                }
+            }
+            STORE => {
+                if !self.locals_stack().is_empty() {
+                    args.push(self.next_code_byte());
+                    args.push(self.next_code_byte());
+
+                    let data = self.locals_stack_top();
+                    args.push(data);
+                }
+            }
+            STORE_OFFS => {
+                if self.locals_stack().len() >= 2 {
+                    args.push(self.next_code_byte());
+                    args.push(self.next_code_byte());
+
+                    let data = self.locals_stack()[1];
+                    let offset = self.locals_stack()[0];
+                    args.push(data);
+                    args.push(offset);
+                }
             }
             RET => {
                 if self.return_stack().len() >= 2 {
@@ -267,14 +293,37 @@ impl<R: Read, W: Write> VM<R, W> {
                     self.locals_stack_push(args[1]);
                 }
                 LOAD => {
-                    match self.load_data(args) {
-                        Some(value) => self.locals_stack_push(value),
+                    let offset = 0;
+                    let data = self.extract_data_ptr(args, offset)
+                        .map(|ptr| self.memory.get(ptr));
+                    match data {
+                        Some(data) => self.locals_stack_push(data),
+                        None => self.terminate_with_segfault(),
+                    }
+                }
+                LOAD_OFFS => {
+                    let offset = args[2];
+                    let data = self.extract_data_ptr(args, offset)
+                        .map(|ptr| self.memory.get(ptr));
+                    match data {
+                        Some(data) => self.locals_stack_push(data),
                         None => self.terminate_with_segfault(),
                     }
                 }
                 STORE => {
-                    if self.store_data(args).is_err() {
-                        self.terminate_with_segfault();
+                    let data = args[2];
+                    let offset = 0;
+                    match self.extract_data_ptr(args, offset) {
+                        Some(ptr) => self.memory.put(ptr, data),
+                        None => self.terminate_with_segfault(),
+                    }
+                }
+                STORE_OFFS => {
+                    let data = args[2];
+                    let offset = args[3];
+                    match self.extract_data_ptr(args, offset) {
+                        Some(ptr) => self.memory.put(ptr, data),
+                        None => self.terminate_with_segfault(),
                     }
                 }
                 JMP => self.jump(args),
@@ -319,64 +368,13 @@ impl<R: Read, W: Write> VM<R, W> {
         }
     }
 
-    fn load_data(&self, args: DataSlice) -> Option<u8> {
-        self.extract_data_ptr(args)
-            .map(|ptr| self.memory.get(ptr))
-    }
-
-    fn store_data(&mut self, args: DataSlice) -> Result<()> {
-        let e = Error::new(ErrorKind::InvalidInput, "");
-
-        match self.extract_ptr(args) {
-            Some((ptr, with_offset)) => {
-                let value = if with_offset {
-                    if self.locals_stack().len() < 2 {
-                        return Err(e);
-                    } else {
-                        self.locals_stack()[1]
-                    }
-                } else {
-                    self.locals_stack()[0]
-                };
-
-                self.memory.put(ptr, value);
-                Ok(())
-            }
-            None => Err(e),
+    fn extract_data_ptr(&self, args: DataSlice, offset: u8) -> Option<Word> {
+        let ptr = Memory::read_word(&args, 0) + offset as Word;
+        if self.memory.is_in_data(ptr) {
+            Some(ptr)
+        } else {
+            None
         }
-    }
-
-    fn extract_data_ptr(&self, args: DataSlice) -> Option<Word> {
-        self.extract_ptr(args)
-            .and_then(|(ptr, _)| if self.memory.is_in_data(ptr) {
-                Some(ptr)
-            } else {
-                None
-            })
-    }
-
-    fn extract_ptr(&self, args: DataSlice) -> Option<(Word, bool)> {
-        let mode = args[0];
-        let ptr = Memory::read_word(&args, 1);
-
-        let mut with_offset = false;
-
-        let updated_ptr = match mode {
-            PTR => ptr,
-            PTR_WITH_OFFSET => {
-                with_offset = true;
-
-                if self.locals_stack().is_empty() {
-                    return None;
-                } else {
-                    let offset = self.locals_stack_top() as Word;
-                    ptr + offset
-                }
-            }
-            _ => unreachable!(),
-        };
-
-        Some((updated_ptr, with_offset))
     }
 
     fn apply_bin_operator<F>(&mut self, args: DataSlice, op: F)

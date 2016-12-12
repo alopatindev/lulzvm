@@ -18,16 +18,18 @@ pub const XOR: u8 = 0x15;
 pub const PUSH: u8 = 0x20;
 pub const POP: u8 = 0x21;
 pub const SWP: u8 = 0x22;
-pub const STORE: u8 = 0x23;  // stack -> data
-pub const LOAD: u8 = 0x24;   // data -> stack
+pub const STORE: u8 = 0x23;       // stack -> data
+pub const STORE_OFFS: u8 = 0x24;  // stack -> data + offset
+pub const LOAD: u8 = 0x25;        // data -> stack
+pub const LOAD_OFFS: u8 = 0x26;   // data + offset -> stack
 
 pub const JMP: u8 = 0x30;
-pub const JE: u8 = 0x31;     // ==
-pub const JNE: u8 = 0x32;    // !=
-pub const JL: u8 = 0x33;     // <
-pub const JG: u8 = 0x34;     // >
-pub const JLE: u8 = 0x35;    // <=
-pub const JGE: u8 = 0x36;    // >=
+pub const JE: u8 = 0x31;          // ==
+pub const JNE: u8 = 0x32;         // !=
+pub const JL: u8 = 0x33;          // <
+pub const JG: u8 = 0x34;          // >
+pub const JLE: u8 = 0x35;         // <=
+pub const JGE: u8 = 0x36;         // >=
 
 pub const CALL: u8 = 0x41;
 pub const RET: u8 = 0x42;
