@@ -6,7 +6,6 @@ ORIGIN="${PKGID%#*}"
 ORIGIN="${ORIGIN:7}"
 PKGNAMEVER="${PKGID#*#}"
 PKGNAME="$(echo $ORIGIN | sed 's!.*\/!!')"
-PKGNAME="$(echo $PKGNAME | sed 's!-!_!')" # FIXME
 shift
 cargo test --no-run || exit $?
 
@@ -14,7 +13,7 @@ for i in $ORIGIN/target/debug/${PKGNAME}*
 do
     echo "send_kcov: $i"
     OUTDIR="target/cov/$(basename $i)"
-    mkdir -p ${OUTDIR}
+    mkdir -p "${OUTDIR}"
     kcov/build/src/kcov \
         --exclude-pattern=/.cargo,/usr/lib \
         --verify \
