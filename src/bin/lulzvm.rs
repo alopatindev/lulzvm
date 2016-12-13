@@ -1,3 +1,5 @@
+extern crate ctrlc;
+
 extern crate lulzvm;
 
 extern crate env_logger;
@@ -10,6 +12,8 @@ use lulzvm::vm::VM;
 use std::env;
 use std::fs::File;
 use std::io::{stdin, stdout, Read, Result};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 fn main() {
     let matches = App::new("LulzVM")
@@ -38,7 +42,13 @@ fn do_checked_main(matches: ArgMatches) -> Result<()> {
         let _ = env_logger::init().unwrap();
     }
 
-    let mut vm = VM::new(stdin(), stdout(), executable);
+    let terminating = Arc::new(AtomicBool::new(false));
+    let r = terminating.clone();
+    ctrlc::set_handler(move || {
+        r.store(true, Ordering::Relaxed);
+    });
+
+    let mut vm = VM::new(stdin(), stdout(), executable, terminating);
     vm.run();
 
     Ok(())

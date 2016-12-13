@@ -1,6 +1,8 @@
 use config::*;
 use env_logger;
 use std::io::{BufReader, BufWriter};
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 use vm::VM;
 use vm::memory::Memory;
 
@@ -34,7 +36,9 @@ pub fn test_run(input: DataSlice,
     let output: Data = vec![];
     let output = BufWriter::new(output);
 
-    let mut vm = VM::new(input, output, executable);
+    let terminating = Arc::new(AtomicBool::new(false));
+
+    let mut vm = VM::new(input, output, executable, terminating);
     vm.run();
 
     let output = vm.get_output_ref()

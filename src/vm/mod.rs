@@ -2,6 +2,8 @@ use config::*;
 use std::fmt;
 use std::io::{Read, Write};
 use std::num::Wrapping;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use stopwatch::Stopwatch;
 use utils;
 
@@ -25,7 +27,9 @@ pub struct VM<R: Read, W: Write> {
     registers: Registers,
     memory: Memory,
 
+    terminating: Arc<AtomicBool>,
     terminated: bool,
+
     waiting: bool,
 
     clock: Stopwatch,
@@ -33,7 +37,7 @@ pub struct VM<R: Read, W: Write> {
 }
 
 impl<R: Read, W: Write> VM<R, W> {
-    pub fn new(input: R, output: W, executable: Data) -> Self {
+    pub fn new(input: R, output: W, executable: Data, terminating: Arc<AtomicBool>) -> Self {
         let memory = Memory::from_executable(executable);
 
         VM {
@@ -44,6 +48,8 @@ impl<R: Read, W: Write> VM<R, W> {
             memory: memory,
 
             terminated: false,
+            terminating: terminating,
+
             waiting: false,
 
             clock: Stopwatch::new(),
@@ -453,6 +459,10 @@ impl<R: Read, W: Write> VM<R, W> {
 
             let (event, argument) = self.event_queue_pop();
             self.process_event(event, argument);
+        }
+
+        if self.terminating.load(Ordering::Relaxed) {
+            self.process_event(TERMINATE, 0x00);
         }
 
         self
