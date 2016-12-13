@@ -2,6 +2,8 @@ extern crate ctrlc;
 
 extern crate lulzvm;
 
+#[macro_use]
+extern crate log;
 extern crate env_logger;
 
 #[macro_use]
@@ -38,13 +40,14 @@ fn do_checked_main(matches: ArgMatches) -> Result<()> {
     let _ = try!(executable_file.read_to_end(&mut executable));
 
     if matches.is_present("debug") {
-        env::set_var("RUST_LOG", "lulzvm::vm=debug");
+        env::set_var("RUST_LOG", "lulzvm::vm=debug,error,info,warn,trace");
         let _ = env_logger::init().unwrap();
     }
 
     let terminating = Arc::new(AtomicBool::new(false));
     let r = terminating.clone();
     ctrlc::set_handler(move || {
+        info!("Terminating...");
         r.store(true, Ordering::Relaxed);
     });
 
