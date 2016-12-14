@@ -38,18 +38,6 @@ code size | code segment | data segment
 executable | <-- locals stack | <-- return address stack | event handlers | <-- event queue
 ```
 
-### Events
-|ID  |Title           |Priority|
-|----|----------------|--------|
-|0x00|CLOCK           |Normal  |
-|0x01|INPUT           |Normal  |
-|0x02|OUTPUT          |Normal  |
-|0x03|TERMINATE       |Fatal   |
-|0x04|SEGFAULT        |Fatal   |
-|0x05|UNKNOWN_ERROR   |Fatal   |
-
-Fatal priority events run instantly.
-
 ### Registers
 |ID  |Title|Description         |
 |----|-----|--------------------|
@@ -66,3 +54,15 @@ Fatal priority events run instantly.
 |termination_scheduled|SIGINT/SIGTERM has happen  |
 |terminated           |Finished program execution |
 |waiting              |Waiting for any event      |
+
+### Events
+|ID  |Title           |Priority|
+|----|----------------|--------|
+|0x00|CLOCK           |Normal  |
+|0x01|INPUT           |Normal  |
+|0x02|OUTPUT          |Normal  |
+|0x03|TERMINATE       |Fatal   |
+|0x04|SEGFAULT        |Fatal   |
+|0x05|UNKNOWN_ERROR   |Fatal   |
+
+Fatal priority events run instantly.
