@@ -36,9 +36,9 @@ pub fn test_run(input: DataSlice,
     let output: Data = vec![];
     let output = BufWriter::new(output);
 
-    let terminating = Arc::new(AtomicBool::new(false));
+    let termination_scheduled = Arc::new(AtomicBool::new(false));
 
-    let mut vm = VM::new(input, output, executable, terminating);
+    let mut vm = VM::new(input, output, executable, termination_scheduled);
     vm.run();
 
     let output = vm.get_output_ref()

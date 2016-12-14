@@ -29,7 +29,7 @@ pub struct VM<R: Read, W: Write> {
     registers: Registers,
     memory: Memory,
 
-    terminating: Arc<AtomicBool>,
+    termination_scheduled: Arc<AtomicBool>,
     terminated: bool,
 
     waiting: bool,
@@ -39,7 +39,11 @@ pub struct VM<R: Read, W: Write> {
 }
 
 impl<R: Read, W: Write> VM<R, W> {
-    pub fn new(input: R, output: W, executable: Data, terminating: Arc<AtomicBool>) -> Self {
+    pub fn new(input: R,
+               output: W,
+               executable: Data,
+               termination_scheduled: Arc<AtomicBool>)
+               -> Self {
         let memory = Memory::from_executable(executable);
 
         VM {
@@ -50,7 +54,7 @@ impl<R: Read, W: Write> VM<R, W> {
             memory: memory,
 
             terminated: false,
-            terminating: terminating,
+            termination_scheduled: termination_scheduled,
 
             waiting: false,
 
@@ -465,7 +469,7 @@ impl<R: Read, W: Write> VM<R, W> {
             self.process_event(event, argument);
         }
 
-        if self.terminating.load(Ordering::Relaxed) {
+        if self.termination_scheduled.load(Ordering::Relaxed) {
             self.process_event(TERMINATE, 0x00);
         }
 

@@ -44,14 +44,14 @@ fn do_checked_main(matches: ArgMatches) -> Result<()> {
         let _ = env_logger::init().unwrap();
     }
 
-    let terminating = Arc::new(AtomicBool::new(false));
-    let r = terminating.clone();
+    let termination_scheduled = Arc::new(AtomicBool::new(false));
+    let r = termination_scheduled.clone();
     ctrlc::set_handler(move || {
         info!("Terminating...");
         r.store(true, Ordering::Relaxed);
     });
 
-    let mut vm = VM::new(stdin(), stdout(), executable, terminating);
+    let mut vm = VM::new(stdin(), stdout(), executable, termination_scheduled);
     vm.run();
 
     Ok(())
