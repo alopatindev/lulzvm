@@ -35,7 +35,7 @@ code size | code segment | data segment
 
 ### Memory Layout
 ```
-executable | registers | <-- locals stack | <-- return address stack | event handlers | <-- event queue
+executable | <-- locals stack | <-- return address stack | event handlers | <-- event queue
 ```
 
 ### Events

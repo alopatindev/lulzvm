@@ -29,7 +29,7 @@ pub struct Memory {
 impl Memory {
     pub fn from_executable(mut executable: Data) -> Memory {
         let executable_size = executable.len() as Word;
-        let new_size = executable_size + REGISTERS_SIZE + LOCALS_STACK_SIZE + RETURN_STACK_SIZE +
+        let new_size = executable_size + LOCALS_STACK_SIZE + RETURN_STACK_SIZE +
                        EVENT_HANDLERS_SIZE + EVENT_QUEUE_SIZE;
         executable.resize(new_size as usize, 0);
 
@@ -37,7 +37,7 @@ impl Memory {
         let code_begin = CODE_OFFSET;
         let code_end = CODE_OFFSET + code_size;
 
-        let locals_stack_begin = executable_size + REGISTERS_SIZE;
+        let locals_stack_begin = executable_size;
         let locals_stack_end = locals_stack_begin + LOCALS_STACK_SIZE;
 
         let return_stack_begin = locals_stack_end;
