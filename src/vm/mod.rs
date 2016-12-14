@@ -4,6 +4,8 @@ use std::io::{Read, Write};
 use std::num::Wrapping;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread::sleep;
+use std::time::Duration;
 use stopwatch::Stopwatch;
 use utils;
 
@@ -89,6 +91,8 @@ impl<R: Read, W: Write> VM<R, W> {
 
                 self.process_events()
                     .update_clock();
+
+                sleep(Duration::from_millis(1));
             }
         }
 
