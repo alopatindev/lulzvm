@@ -59,3 +59,10 @@ Fatal priority events run instantly.
 |0x03|RP   |Return Stack Pointer|
 |0x04|EP   |Event Queue Pointer |
 |0x05|EE   |Event Queue End     |
+
+### Flags
+|Title                |Description                |
+|---------------------|---------------------------|
+|termination_scheduled|SIGINT/SIGTERM has happen  |
+|terminated           |Finished program execution |
+|waiting              |Waiting for any event      |
